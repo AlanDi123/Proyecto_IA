@@ -1,0 +1,57 @@
+{
+    "knowledge_base_path": "data/knowledge",
+    "ml_model_path": "models",
+    "logs_path": "logs",
+    "resources_path": "resources",
+    
+    "language_model": {
+      "language": "es",
+      "model": "es_core_news_md",
+      "use_gpu": false,
+      "max_sequence_length": 100,
+      "embedding_dimension": 256
+    },
+    
+    "voice_settings": {
+      "enabled": true,
+      "language": "es",
+      "tld": "com.mx",
+      "speed": 1.0,
+      "pitch": 1.0,
+      "volume": 1.0
+    },
+    
+    "ui_settings": {
+      "theme": "dark",
+      "font_size": 10,
+      "window_width": 1024,
+      "window_height": 768,
+      "show_welcome": true
+    },
+    
+    "ml_settings": {
+      "continuous_learning": true,
+      "training_interval": 3600,
+      "batch_size": 64,
+      "epochs": 5,
+      "learning_rate": 0.001,
+      "validation_split": 0.2,
+      "save_checkpoints": true
+    },
+    
+    "system_settings": {
+      "auto_start": false,
+      "save_conversations": true,
+      "max_conversation_history": 100,
+      "auto_update": true,
+      "debug_mode": false,
+      "startup_script": null
+    },
+    
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "build_date": "2025-05-08 00:00:00"
+    }
+  }

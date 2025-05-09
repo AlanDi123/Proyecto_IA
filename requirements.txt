@@ -1,0 +1,28 @@
+# Dependencias principales del sistema
+tensorflow[and-cuda]
+numpy
+scipy
+scikit-learn
+matplotlib
+pandas
+
+# Procesamiento de lenguaje natural
+spacy
+nltk
+gensim
+
+# Interfaz gráfica
+PyQt6
+
+# Procesamiento y síntesis de voz
+gTTS
+pydub
+pygame
+SpeechRecognition
+
+# Utilidades
+tqdm
+requests
+pillow
+python-dotenv
+pytz
