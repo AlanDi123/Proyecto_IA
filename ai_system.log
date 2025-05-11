@@ -1,0 +1,357 @@
+2025-05-08 18:03:11,753 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:03:11,765 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:03:11,783 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:03:11,785 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:03:11,791 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:03:11,795 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:03:13,181 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:03:13,185 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:03:13,185 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:03:13,185 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:03:13,233 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:03:13,233 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:03:13,233 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:03:13,233 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:03:13,236 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:03:13,238 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:09:01,124 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:09:01,125 - ConfigManager - INFO - Inicializando gestor de configuración...
+2025-05-08 18:09:01,126 - ConfigManager - INFO - Configuración cargada desde config/settings.json
+2025-05-08 18:09:01,126 - ConfigManager - INFO - Gestor de configuración inicializado correctamente
+2025-05-08 18:09:01,126 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:09:01,127 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:09:01,128 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:09:01,128 - MLEngine - INFO - Inicializando motor de aprendizaje automático...
+2025-05-08 18:09:01,128 - MLEngine - INFO - No se encontró modelo existente, se creará uno nuevo durante el entrenamiento
+2025-05-08 18:09:01,129 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:09:01,133 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:09:02,622 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:09:02,624 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:09:02,624 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:09:02,625 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:09:02,671 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:09:02,671 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:09:02,671 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:09:02,672 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:09:02,674 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:09:02,675 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:11:18,363 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:11:18,364 - ConfigManager - INFO - Inicializando gestor de configuración...
+2025-05-08 18:11:18,365 - ConfigManager - INFO - Configuración cargada desde config/settings.json
+2025-05-08 18:11:18,365 - ConfigManager - INFO - Gestor de configuración inicializado correctamente
+2025-05-08 18:11:18,365 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:11:18,366 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:11:18,367 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:11:18,367 - MLEngine - INFO - Inicializando motor de aprendizaje automático...
+2025-05-08 18:11:18,368 - MLEngine - INFO - No se encontró modelo existente, se creará uno nuevo durante el entrenamiento
+2025-05-08 18:11:18,368 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:11:18,372 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:11:19,431 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:11:19,432 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:11:19,433 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:11:19,433 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:11:19,479 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:11:19,480 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:11:19,480 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:11:19,480 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:11:19,483 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:11:19,485 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:11:19,510 - root - ERROR - Error fatal en el sistema: name 'QWidget' is not defined
+Traceback (most recent call last):
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 197, in <module>
+    exit_code = ai_system.start()
+                ^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 128, in start
+    self.gui.run()
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 37, in run
+    self.main_window = QWidget()
+                       ^^^^^^^
+NameError: name 'QWidget' is not defined
+2025-05-08 18:11:19,513 - root - INFO - Sistema terminado
+2025-05-08 18:11:57,535 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:11:57,536 - ConfigManager - INFO - Inicializando gestor de configuración...
+2025-05-08 18:11:57,537 - ConfigManager - INFO - Configuración cargada desde config/settings.json
+2025-05-08 18:11:57,537 - ConfigManager - INFO - Gestor de configuración inicializado correctamente
+2025-05-08 18:11:57,537 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:11:57,538 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:11:57,539 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:11:57,539 - MLEngine - INFO - Inicializando motor de aprendizaje automático...
+2025-05-08 18:11:57,539 - MLEngine - INFO - No se encontró modelo existente, se creará uno nuevo durante el entrenamiento
+2025-05-08 18:11:57,540 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:11:57,543 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:11:58,612 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:11:58,614 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:11:58,614 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:11:58,615 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:11:58,658 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:11:58,658 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:11:58,659 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:11:58,659 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:11:58,661 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:11:58,663 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:11:58,682 - root - ERROR - Error fatal en el sistema: BaseWidget.__init__() missing 2 required positional arguments: 'master' and 'widgetName'
+Traceback (most recent call last):
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 198, in <module>
+    exit_code = ai_system.start()
+                ^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 129, in start
+    self.gui.run()
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 38, in run
+    self.main_window = Widget()
+                       ^^^^^^^^
+TypeError: BaseWidget.__init__() missing 2 required positional arguments: 'master' and 'widgetName'
+2025-05-08 18:11:58,684 - root - INFO - Sistema terminado
+2025-05-08 18:31:35,892 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:31:35,893 - ConfigManager - INFO - Inicializando gestor de configuración...
+2025-05-08 18:31:35,894 - ConfigManager - INFO - Configuración cargada desde config/settings.json
+2025-05-08 18:31:35,894 - ConfigManager - INFO - Gestor de configuración inicializado correctamente
+2025-05-08 18:31:35,894 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:31:35,895 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:31:35,896 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:31:35,896 - MLEngine - INFO - Inicializando motor de aprendizaje automático...
+2025-05-08 18:31:35,896 - MLEngine - INFO - No se encontró modelo existente, se creará uno nuevo durante el entrenamiento
+2025-05-08 18:31:35,897 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:31:35,901 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:31:37,002 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:31:37,004 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:31:37,004 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:31:37,004 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:31:37,034 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:31:37,035 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:31:37,035 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:31:37,035 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:31:37,037 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:31:37,039 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:31:37,063 - GUI - INFO - Inicializando interfaz gráfica...
+2025-05-08 18:31:37,104 - root - ERROR - Error fatal en el sistema: Disabled
+Traceback (most recent call last):
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 177, in <module>
+    exit_code = ai_system.start()
+                ^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 107, in start
+    self.gui = ApplicationGUI(self)
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\modules\gui.py", line 103, in __init__
+    self._setup_styles()
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\modules\gui.py", line 138, in _setup_styles
+    palette.setColor(QPalette.ColorRole.Disabled, QPalette.ColorRole.WindowText, QColor(127, 127, 127))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\AppData\Local\Programs\Python\Python311\Lib\enum.py", line 786, in __getattr__
+    raise AttributeError(name) from None
+AttributeError: Disabled
+2025-05-08 18:31:37,108 - root - INFO - Sistema terminado
+2025-05-08 18:33:27,952 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:33:27,953 - ConfigManager - INFO - Inicializando gestor de configuración...
+2025-05-08 18:33:27,954 - ConfigManager - INFO - Configuración cargada desde config/settings.json
+2025-05-08 18:33:27,954 - ConfigManager - INFO - Gestor de configuración inicializado correctamente
+2025-05-08 18:33:27,954 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:33:27,955 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:33:27,956 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:33:27,956 - MLEngine - INFO - Inicializando motor de aprendizaje automático...
+2025-05-08 18:33:27,956 - MLEngine - INFO - No se encontró modelo existente, se creará uno nuevo durante el entrenamiento
+2025-05-08 18:33:27,957 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:33:27,961 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:33:29,025 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:33:29,027 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:33:29,027 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:33:29,028 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:33:29,056 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:33:29,056 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:33:29,056 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:33:29,057 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:33:29,059 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:33:29,061 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:33:29,080 - GUI - INFO - Inicializando interfaz gráfica...
+2025-05-08 18:33:29,116 - root - ERROR - Error fatal en el sistema: Disabled
+Traceback (most recent call last):
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 177, in <module>
+    exit_code = ai_system.start()
+                ^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 107, in start
+    self.gui = ApplicationGUI(self)
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\modules\gui.py", line 103, in __init__
+    self._setup_styles()
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\modules\gui.py", line 139, in _setup_styles
+    palette.setColor(QPalette.ColorRole.Disabled, QPalette.ColorRole.Text, QColor(127, 127, 127))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\AppData\Local\Programs\Python\Python311\Lib\enum.py", line 786, in __getattr__
+    raise AttributeError(name) from None
+AttributeError: Disabled
+2025-05-08 18:33:29,120 - root - INFO - Sistema terminado
+2025-05-08 18:36:53,784 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:36:53,785 - ConfigManager - INFO - Inicializando gestor de configuración...
+2025-05-08 18:36:53,786 - ConfigManager - INFO - Configuración cargada desde config/settings.json
+2025-05-08 18:36:53,786 - ConfigManager - INFO - Gestor de configuración inicializado correctamente
+2025-05-08 18:36:53,787 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:36:53,788 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:36:53,788 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:36:53,789 - MLEngine - INFO - Inicializando motor de aprendizaje automático...
+2025-05-08 18:36:53,789 - MLEngine - INFO - No se encontró modelo existente, se creará uno nuevo durante el entrenamiento
+2025-05-08 18:36:53,790 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:36:53,794 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:36:54,897 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:36:54,899 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:36:54,899 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:36:54,899 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:36:54,931 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:36:54,931 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:36:54,932 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:36:54,932 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:36:54,935 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:36:54,938 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:36:54,961 - GUI - INFO - Inicializando interfaz gráfica...
+2025-05-08 18:36:55,057 - GUI - INFO - Interfaz gráfica inicializada correctamente
+2025-05-08 18:36:55,064 - root - ERROR - Error fatal en el sistema: wrapped C/C++ object of type ApplicationGUI has been deleted
+Traceback (most recent call last):
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 177, in <module>
+    exit_code = ai_system.start()
+                ^^^^^^^^^^^^^^^^^
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\main.py", line 108, in start
+    self.gui.run()
+  File "C:\Users\alan2\Desktop\Codigos De Programacion\Proyecto_IA\modules\gui.py", line 1071, in run
+    self.show()
+RuntimeError: wrapped C/C++ object of type ApplicationGUI has been deleted
+2025-05-08 18:36:55,067 - root - INFO - Sistema terminado
+2025-05-08 18:40:58,495 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:40:58,495 - ConfigManager - INFO - Inicializando gestor de configuración...
+2025-05-08 18:40:58,496 - ConfigManager - INFO - Configuración cargada desde config/settings.json
+2025-05-08 18:40:58,496 - ConfigManager - INFO - Gestor de configuración inicializado correctamente
+2025-05-08 18:40:58,497 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:40:58,498 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:40:58,499 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:40:58,499 - MLEngine - INFO - Inicializando motor de aprendizaje automático...
+2025-05-08 18:40:58,500 - MLEngine - INFO - No se encontró modelo existente, se creará uno nuevo durante el entrenamiento
+2025-05-08 18:40:58,501 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:40:58,506 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:40:59,585 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:40:59,587 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:40:59,587 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:40:59,587 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:40:59,611 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:40:59,611 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:40:59,612 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:40:59,612 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:40:59,614 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:40:59,616 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:42:36,961 - AISystem - INFO - Inicializando sistema de IA...
+2025-05-08 18:42:36,962 - ConfigManager - INFO - Inicializando gestor de configuración...
+2025-05-08 18:42:36,963 - ConfigManager - INFO - Configuración cargada desde config/settings.json
+2025-05-08 18:42:36,963 - ConfigManager - INFO - Gestor de configuración inicializado correctamente
+2025-05-08 18:42:36,964 - KnowledgeBase - INFO - Inicializando base de conocimiento...
+2025-05-08 18:42:36,965 - KnowledgeBase - INFO - Base de datos inicializada correctamente
+2025-05-08 18:42:36,966 - KnowledgeBase - INFO - Base de conocimiento inicializada correctamente
+2025-05-08 18:42:36,966 - MLEngine - INFO - Inicializando motor de aprendizaje automático...
+2025-05-08 18:42:36,966 - MLEngine - INFO - No se encontró modelo existente, se creará uno nuevo durante el entrenamiento
+2025-05-08 18:42:36,968 - TextProcessor - INFO - Inicializando procesador de texto...
+2025-05-08 18:42:36,972 - TextProcessor - INFO - Descargando recurso NLTK: stopwords
+2025-05-08 18:42:38,114 - TextProcessor - INFO - Modelo spaCy cargado correctamente
+2025-05-08 18:42:38,116 - TextProcessor - INFO - Vocabularios cargados correctamente
+2025-05-08 18:42:38,117 - TextProcessor - INFO - Procesador de texto inicializado correctamente
+2025-05-08 18:42:38,117 - VoiceManager - INFO - Inicializando gestor de voz...
+2025-05-08 18:42:38,146 - VoiceManager - INFO - Gestor de voz configurado para idioma es (region: com.mx)
+2025-05-08 18:42:38,147 - AISystem - INFO - Sistema de IA inicializado correctamente
+2025-05-08 18:42:38,147 - AISystem - INFO - Iniciando sistema de IA...
+2025-05-08 18:42:38,147 - MLEngine - INFO - Motor de ML iniciado
+2025-05-08 18:42:38,150 - VoiceManager - INFO - Iniciando servicio de voz...
+2025-05-08 18:42:38,152 - VoiceManager - INFO - Servicio de voz iniciado correctamente
+2025-05-08 18:42:38,211 - GUI - INFO - Inicializando interfaz gráfica...
+2025-05-08 18:42:38,232 - GUI - INFO - Interfaz gráfica inicializada correctamente
+2025-05-08 18:43:04,022 - AISystem - INFO - Procesando entrada: hola
+2025-05-08 18:43:04,026 - TextProcessor - ERROR - Error al procesar texto: 
+**********************************************************************
+  Resource [93mpunkt_tab[0m not found.
+  Please use the NLTK Downloader to obtain the resource:
+
+  [31m>>> import nltk
+  >>> nltk.download('punkt_tab')
+  [0m
+  For more information see: https://www.nltk.org/data.html
+
+  Attempted to load [93mtokenizers/punkt_tab/english/[0m
+
+  Searched in:
+    - 'C:\\Users\\alan2/nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\share\\nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\lib\\nltk_data'
+    - 'C:\\Users\\alan2\\AppData\\Roaming\\nltk_data'
+    - 'C:\\nltk_data'
+    - 'D:\\nltk_data'
+    - 'E:\\nltk_data'
+    - 'C:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\data\\nltk_data'
+**********************************************************************
+
+2025-05-08 18:43:04,027 - MLEngine - INFO - Modelo no disponible, utilizando respuesta predeterminada
+2025-05-08 18:43:04,028 - MLEngine - ERROR - Error al generar respuesta: 'dict' object has no attribute 'lower'
+2025-05-08 18:43:04,028 - AISystem - INFO - Respuesta generada: Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento.
+2025-05-08 18:43:04,031 - VoiceManager - INFO - Texto añadido a cola de síntesis: 1 segmentos
+2025-05-08 18:43:04,033 - VoiceManager - INFO - Sintetizando voz: 'Lo siento, Su Majestad, estoy teniendo dificultade...' (95 caracteres)
+2025-05-08 18:44:13,343 - AISystem - INFO - Procesando entrada: que tal
+2025-05-08 18:44:13,348 - TextProcessor - ERROR - Error al procesar texto: 
+**********************************************************************
+  Resource [93mpunkt_tab[0m not found.
+  Please use the NLTK Downloader to obtain the resource:
+
+  [31m>>> import nltk
+  >>> nltk.download('punkt_tab')
+  [0m
+  For more information see: https://www.nltk.org/data.html
+
+  Attempted to load [93mtokenizers/punkt_tab/english/[0m
+
+  Searched in:
+    - 'C:\\Users\\alan2/nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\share\\nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\lib\\nltk_data'
+    - 'C:\\Users\\alan2\\AppData\\Roaming\\nltk_data'
+    - 'C:\\nltk_data'
+    - 'D:\\nltk_data'
+    - 'E:\\nltk_data'
+    - 'C:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\data\\nltk_data'
+**********************************************************************
+
+2025-05-08 18:44:13,349 - MLEngine - INFO - Modelo no disponible, utilizando respuesta predeterminada
+2025-05-08 18:44:13,350 - MLEngine - ERROR - Error al generar respuesta: 'dict' object has no attribute 'lower'
+2025-05-08 18:44:13,350 - AISystem - INFO - Respuesta generada: Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento.
+2025-05-08 18:44:13,353 - VoiceManager - INFO - Texto añadido a cola de síntesis: 1 segmentos
+2025-05-08 18:44:13,353 - VoiceManager - INFO - Sintetizando voz: 'Lo siento, Su Majestad, estoy teniendo dificultade...' (95 caracteres)
+2025-05-08 18:44:58,773 - AISystem - INFO - Procesando entrada: hola
+2025-05-08 18:44:58,778 - TextProcessor - ERROR - Error al procesar texto: 
+**********************************************************************
+  Resource [93mpunkt_tab[0m not found.
+  Please use the NLTK Downloader to obtain the resource:
+
+  [31m>>> import nltk
+  >>> nltk.download('punkt_tab')
+  [0m
+  For more information see: https://www.nltk.org/data.html
+
+  Attempted to load [93mtokenizers/punkt_tab/english/[0m
+
+  Searched in:
+    - 'C:\\Users\\alan2/nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\share\\nltk_data'
+    - 'c:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\.venv\\lib\\nltk_data'
+    - 'C:\\Users\\alan2\\AppData\\Roaming\\nltk_data'
+    - 'C:\\nltk_data'
+    - 'D:\\nltk_data'
+    - 'E:\\nltk_data'
+    - 'C:\\Users\\alan2\\Desktop\\Codigos De Programacion\\Proyecto_IA\\data\\nltk_data'
+**********************************************************************
+
+2025-05-08 18:44:58,779 - MLEngine - INFO - Modelo no disponible, utilizando respuesta predeterminada
+2025-05-08 18:44:58,779 - MLEngine - ERROR - Error al generar respuesta: 'dict' object has no attribute 'lower'
+2025-05-08 18:44:58,779 - AISystem - INFO - Respuesta generada: Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento.
+2025-05-08 18:44:58,782 - VoiceManager - INFO - Texto añadido a cola de síntesis: 1 segmentos
+2025-05-08 18:44:58,783 - VoiceManager - INFO - Sintetizando voz: 'Lo siento, Su Majestad, estoy teniendo dificultade...' (95 caracteres)
+2025-05-08 18:45:15,686 - AISystem - INFO - Apagando sistema de IA...
+2025-05-08 18:45:15,687 - AISystem - INFO - Historial de conversación guardado en conversation_history/conversation_20250508_184515.json
+2025-05-08 18:45:15,688 - MLEngine - INFO - Deteniendo motor de ML...
+2025-05-08 18:45:15,688 - MLEngine - INFO - Motor de ML detenido
+2025-05-08 18:45:15,688 - VoiceManager - INFO - Deteniendo servicio de voz...
+2025-05-08 18:45:15,689 - VoiceManager - INFO - Servicio de voz detenido
+2025-05-08 18:45:15,689 - AISystem - INFO - Sistema de IA apagado correctamente
+2025-05-08 18:45:15,697 - root - INFO - Sistema terminado

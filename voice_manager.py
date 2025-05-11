@@ -33,7 +33,13 @@ class VoiceManager:
         self.pitch = voice_settings.get("pitch", 1.0)
         
         # Inicializar pygame para reproducción de audio
-        pygame.mixer.init()
+        try:
+            pygame.mixer.init()
+            self.pygame_available = True
+            self.logger.info("Pygame inicializado correctamente")
+        except Exception as e:
+            self.logger.warning(f"No se pudo inicializar pygame: {str(e)}. La síntesis de voz estará deshabilitada.")
+            self.pygame_available = False
         
         # Cola de mensajes para síntesis
         self.speech_queue = queue.Queue()
@@ -235,8 +241,10 @@ class VoiceManager:
                 if file.startswith("speech_") and file.endswith(".mp3"):
                     file_path = os.path.join(self.temp_dir, file)
                     try:
-                        os.remove(file_path)
-                    except:
-                        pass
+                        # Verificar si el archivo no está en uso actualmente
+                        if self.current_audio_file != file_path:
+                            os.remove(file_path)
+                    except Exception as e:
+                        self.logger.warning(f"No se pudo eliminar archivo temporal {file_path}: {str(e)}")
         except Exception as e:
             self.logger.error(f"Error al limpiar archivos temporales: {str(e)}")

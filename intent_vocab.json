@@ -1,0 +1,80 @@
+{
+  "greeting": [
+    "hola",
+    "buenos días",
+    "buenas tardes",
+    "buenas noches",
+    "saludos",
+    "hey"
+  ],
+  "farewell": [
+    "adiós",
+    "hasta luego",
+    "nos vemos",
+    "hasta pronto",
+    "chao"
+  ],
+  "question": [
+    "qué",
+    "cómo",
+    "cuándo",
+    "dónde",
+    "por qué",
+    "cuál",
+    "?"
+  ],
+  "command": [
+    "haz",
+    "muestra",
+    "dime",
+    "busca",
+    "encuentra",
+    "abre",
+    "ejecuta"
+  ],
+  "confirmation": [
+    "sí",
+    "claro",
+    "por supuesto",
+    "afirmativo",
+    "correcto",
+    "exacto"
+  ],
+  "negation": [
+    "no",
+    "nunca",
+    "jamás",
+    "negativo",
+    "incorrecto"
+  ],
+  "gratitude": [
+    "gracias",
+    "agradecido",
+    "te lo agradezco"
+  ],
+  "apology": [
+    "perdón",
+    "disculpa",
+    "lo siento"
+  ],
+  "opinion": [
+    "creo",
+    "pienso",
+    "considero",
+    "opino",
+    "me parece"
+  ],
+  "request": [
+    "podrías",
+    "puedes",
+    "te pido",
+    "quisiera",
+    "me gustaría"
+  ],
+  "clarification": [
+    "explica",
+    "aclara",
+    "no entiendo",
+    "confundido"
+  ]
+}

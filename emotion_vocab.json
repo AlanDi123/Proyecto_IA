@@ -1,0 +1,50 @@
+{
+  "joy": [
+    "feliz",
+    "contento",
+    "alegre",
+    "divertido",
+    "entusiasmado",
+    "encantado"
+  ],
+  "sadness": [
+    "triste",
+    "deprimido",
+    "melancólico",
+    "desanimado",
+    "abatido"
+  ],
+  "anger": [
+    "enojado",
+    "furioso",
+    "irritado",
+    "molesto",
+    "indignado"
+  ],
+  "fear": [
+    "miedo",
+    "temor",
+    "asustado",
+    "preocupado",
+    "nervioso"
+  ],
+  "surprise": [
+    "sorprendido",
+    "asombrado",
+    "impactado",
+    "increíble",
+    "inesperado"
+  ],
+  "disgust": [
+    "asco",
+    "repugnancia",
+    "desagrado",
+    "repulsión"
+  ],
+  "neutral": [
+    "neutro",
+    "indiferente",
+    "normal",
+    "estándar"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "greeting": [
+    "Saludos, Su Majestad. ¿En qué puedo servirle hoy?",
+    "A sus órdenes, Mi Rey. ¿Cómo puedo asistirle?",
+    "Es un honor atenderle, Su Majestad. Estoy a su disposición."
+  ],
+  "farewell": [
+    "Ha sido un honor servirle, Su Majestad. Estaré aquí cuando me necesite.",
+    "Que tenga un excelente día, Mi Rey. Quedo a su disposición.",
+    "Me retiro a su orden, Su Majestad. Regresaré cuando lo solicite."
+  ],
+  "unknown": [
+    "Lamento no comprender completamente su solicitud, Su Majestad. ¿Podría reformularla?",
+    "Mi Rey, me temo que necesito más información para procesar adecuadamente su petición.",
+    "Su Majestad, permítame solicitar una aclaración para poder servirle mejor."
+  ],
+  "acknowledgment": [
+    "Entendido, Su Majestad.",
+    "A sus órdenes, Mi Rey.",
+    "Comprendido perfectamente, Su Alteza."
+  ]
+}

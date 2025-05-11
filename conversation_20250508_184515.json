@@ -1,0 +1,32 @@
+[
+  {
+    "role": "user",
+    "content": "hola",
+    "timestamp": "2025-05-08T18:43:04.022373"
+  },
+  {
+    "role": "assistant",
+    "content": "Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento.",
+    "timestamp": "2025-05-08T18:43:04.028375"
+  },
+  {
+    "role": "user",
+    "content": "que tal",
+    "timestamp": "2025-05-08T18:44:13.344152"
+  },
+  {
+    "role": "assistant",
+    "content": "Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento.",
+    "timestamp": "2025-05-08T18:44:13.350155"
+  },
+  {
+    "role": "user",
+    "content": "hola",
+    "timestamp": "2025-05-08T18:44:58.773553"
+  },
+  {
+    "role": "assistant",
+    "content": "Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento.",
+    "timestamp": "2025-05-08T18:44:58.779555"
+  }
+]
