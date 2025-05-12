@@ -12,15 +12,22 @@ import time
 import logging
 import threading
 import numpy as np
-import pickle
 from datetime import datetime
-import tensorflow as tf
-from tensorflow import Sequential, load_model, Model
-from tensorflow import Dense, LSTM, Embedding, Input, Dropout, Bidirectional
-from tensorflow import Adam
-from tensorflow import ModelCheckpoint, EarlyStopping
-from tensorflow import Tokenizer
-from tensorflow import pad_sequences
+import pickle
+import random
+
+# Imports condicionales para TensorFlow 
+try:
+    import tensorflow as tf
+    from tensorflow import Sequential, load_model, Model
+    from tensorflow import Dense, LSTM, Embedding, Input, Dropout, Bidirectional
+    from tensorflow import Adam
+    from tensorflow import ModelCheckpoint, EarlyStopping
+    from tensorflow import Tokenizer
+    from tensorflow import pad_sequences
+    tf_available = True
+except ImportError:
+    tf_available = False
 
 class MLEngine:
     """Motor de aprendizaje automático y generación de respuestas"""
@@ -29,6 +36,10 @@ class MLEngine:
         """Inicializa el motor de ML con la ruta al modelo y base de conocimiento"""
         self.logger = logging.getLogger("MLEngine")
         self.logger.info("Inicializando motor de aprendizaje automático...")
+        
+        # Verificar si TensorFlow está disponible
+        if not tf_available:
+            self.logger.error("TensorFlow no está disponible. El motor ML funcionará en modo limitado.")
         
         # Crear directorio de modelos si no existe
         if not os.path.exists(model_path):
@@ -51,20 +62,21 @@ class MLEngine:
         self.word_index = None
         
         # Configurar TensorFlow para que sea menos verbose
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0=all, 1=INFO, 2=WARNING, 3=ERROR
-        tf.get_logger().setLevel('ERROR')
-        
-        # Configurar para usar GPU si está disponible pero sin mensajes de error
-        try:
-            gpus = tf.config.list_physical_devices('GPU')
-            if gpus:
-                self.logger.info(f"GPU disponible: {gpus}")
-                # Configurar para usar la memoria de forma dinámica
-                for gpu in gpus:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-                    self.logger.info(f"GPU {gpu} configurada para crecimiento dinámico de memoria")
-        except Exception as e:
-            self.logger.warning(f"Error al configurar GPU: {str(e)}")
+        if tf_available:
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0=all, 1=INFO, 2=WARNING, 3=ERROR
+            tf.get_logger().setLevel('ERROR')
+            
+            # Configurar para usar GPU si está disponible pero sin mensajes de error
+            try:
+                gpus = tf.config.list_physical_devices('GPU')
+                if gpus:
+                    self.logger.info(f"GPU disponible: {gpus}")
+                    # Configurar para usar la memoria de forma dinámica
+                    for gpu in gpus:
+                        tf.config.experimental.set_memory_growth(gpu, True)
+                        self.logger.info(f"GPU {gpu} configurada para crecimiento dinámico de memoria")
+            except Exception as e:
+                self.logger.warning(f"Error al configurar GPU: {str(e)}")
         
         # Semáforo para generación de respuestas
         self.response_lock = threading.Semaphore(1)
@@ -74,6 +86,10 @@ class MLEngine:
         
         # Carga el modelo y tokenizador si existen
         self._load_resources()
+        
+        # Si no hay modelo/tokenizador, crear uno básico
+        if self.tokenizer is None:
+            self.tokenizer = Tokenizer(oov_token="<UNK>") if tf_available else {}
     
     def _load_resources(self):
         """Carga el modelo, tokenizador y otros recursos necesarios"""
@@ -82,7 +98,7 @@ class MLEngine:
             model_file = os.path.join(self.model_path, "model.h5")
             tokenizer_file = os.path.join(self.model_path, "tokenizer.pkl")
             
-            if os.path.exists(model_file) and os.path.exists(tokenizer_file):
+            if os.path.exists(model_file) and os.path.exists(tokenizer_file) and tf_available:
                 self.logger.info("Cargando modelo y tokenizador existentes...")
                 
                 try:
@@ -108,10 +124,12 @@ class MLEngine:
                     self.tokenizer = Tokenizer(oov_token="<UNK>")
             else:
                 self.logger.info("No se encontró modelo existente, se creará uno nuevo durante el entrenamiento")
-                self.tokenizer = Tokenizer(oov_token="<UNK>")
+                self.tokenizer = Tokenizer(oov_token="<UNK>") if tf_available else {}
+                self.model = None
         except Exception as e:
             self.logger.error(f"Error al cargar recursos: {str(e)}")
-            self.tokenizer = Tokenizer(oov_token="<UNK>")
+            self.tokenizer = Tokenizer(oov_token="<UNK>") if tf_available else {}
+            self.model = None
     
     def start(self):
         """Inicia el motor de ML en un hilo separado"""
@@ -135,7 +153,7 @@ class MLEngine:
         self.is_running = False
         
         # Si hay un modelo activo, lo guardamos
-        if self.model and self.tokenizer:
+        if tf_available and self.model and self.tokenizer:
             self._save_model()
         
         # Esperar a que termine el hilo de entrenamiento
@@ -149,6 +167,9 @@ class MLEngine:
     
     def _save_model(self):
         """Guarda el modelo y tokenizador actuales"""
+        if not tf_available:
+            return
+            
         try:
             if not os.path.exists(self.model_path):
                 os.makedirs(self.model_path)
@@ -177,6 +198,10 @@ class MLEngine:
     
     def _build_model(self, vocab_size):
         """Construye la arquitectura del modelo de lenguaje"""
+        if not tf_available:
+            self.logger.error("TensorFlow no está disponible. No se puede construir el modelo.")
+            return None
+            
         self.logger.info(f"Construyendo modelo con vocabulario de tamaño {vocab_size}")
         
         try:
@@ -234,6 +259,10 @@ class MLEngine:
     
     def train(self, text_data):
         """Entrena el modelo con nuevos datos de texto"""
+        if not tf_available:
+            self.logger.error("TensorFlow no está disponible. No se puede entrenar el modelo.")
+            return False
+            
         if self.is_training:
             self.logger.warning("Ya hay un entrenamiento en curso")
             return False
@@ -354,6 +383,10 @@ class MLEngine:
     
     def _background_training_loop(self):
         """Ejecuta entrenamiento periódico en segundo plano"""
+        if not tf_available:
+            self.logger.warning("TensorFlow no está disponible. No se realizará entrenamiento en segundo plano.")
+            return
+            
         # Esperar inicialmente para dar tiempo a la carga del sistema
         time.sleep(60)  # 1 minuto de espera inicial
         
@@ -403,6 +436,11 @@ class MLEngine:
         if original_text in ["hola", "saludos", "buenos días", "buenas tardes", "buenas noches"]:
             return f"Saludos, Su Majestad. ¿En qué puedo servirle hoy?"
         
+        # Si no tenemos TensorFlow o modelo, usar respuestas predefinidas
+        if not tf_available or self.model is None:
+            # Buscar respuesta en la base de conocimiento
+            return self.knowledge_base.get_predefined_response(input_text_for_kb)
+        
         # Buscar respuesta en la base de conocimiento
         try:
             # Buscar hechos relevantes
@@ -428,15 +466,6 @@ class MLEngine:
         
         with self.response_lock:
             try:
-                # Si no hay modelo entrenado, usar respuestas de la base de conocimiento
-                if self.model is None or self.tokenizer is None or not self.tokenizer.word_index:
-                    self.logger.info("Modelo no disponible, utilizando respuesta predeterminada")
-                    try:
-                        return self.knowledge_base.get_predefined_response(input_text_for_kb)
-                    except Exception as e:
-                        self.logger.error(f"Error al obtener respuesta predeterminada: {str(e)}")
-                        return "A sus órdenes, Su Majestad. ¿Cómo puedo servirle hoy?"
-                
                 # Preprocesar la entrada
                 try:
                     input_seq = self.tokenizer.texts_to_sequences([input_text_for_kb])[0]
@@ -537,6 +566,7 @@ class MLEngine:
             except Exception as e:
                 self.logger.error(f"Error al generar respuesta: {str(e)}")
                 return "Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento."
+    
     def _format_response(self, text):
         """Mejora el formato del texto generado"""
         if not text:

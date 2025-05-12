@@ -26,3 +26,11 @@ requests>=2.27.1
 pillow>=9.0.0
 python-dotenv>=0.20.0
 pytz>=2022.1
+
+
+tensorflow>=2.10.0
+numpy>=1.22.0
+PyQt6>=6.2.3
+nltk>=3.7
+gtts>=2.2.4
+pygame>=2.1.2

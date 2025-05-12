@@ -65,6 +65,20 @@ class KnowledgeBase:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_facts_category ON facts(category)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag)')
             
+            # Crear tabla de fuentes si no existe
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS sources (
+                    id TEXT PRIMARY KEY,
+                    fact_id TEXT,
+                    source_type TEXT,
+                    url TEXT,
+                    title TEXT,
+                    author TEXT,
+                    publication_date TEXT,
+                    FOREIGN KEY (fact_id) REFERENCES facts(id)
+                )
+            ''')
+            
             conn.commit()
             conn.close()
             
@@ -87,20 +101,56 @@ class KnowledgeBase:
         
         # Intentar cargar desde archivo si existe
         try:
-            responses_file = os.path.join(os.path.dirname(self.db_file), "responses.json")
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            responses_file = os.path.join(base_dir, "data", "predefined_responses.json")
             
             if os.path.exists(responses_file):
                 with open(responses_file, 'r', encoding='utf-8') as f:
                     loaded_responses = json.load(f)
                     
-                    # Actualizar respuestas con las cargadas
-                    responses.update(loaded_responses)
+                    # Si el archivo tiene un formato diferente (array de opciones)
+                    for key, value in loaded_responses.items():
+                        if isinstance(value, list) and value:
+                            responses[key] = value[0]  # Usar primera opción
+                        else:
+                            responses[key] = value
+                            
+            else:
+                # Si no existe, crearlo con respuestas por defecto
+                os.makedirs(os.path.dirname(responses_file), exist_ok=True)
+                
+                # Versión extendida para guardar
+                extended_responses = {
+                    "greeting": [
+                        "Saludos, Su Majestad. ¿En qué puedo servirle hoy?",
+                        "A sus órdenes, Mi Rey. ¿Cómo puedo asistirle?",
+                        "Es un honor atenderle, Su Majestad. Estoy a su disposición."
+                    ],
+                    "farewell": [
+                        "Ha sido un honor servirle, Su Majestad. Estaré aquí cuando me necesite.",
+                        "Que tenga un excelente día, Mi Rey. Quedo a su disposición.",
+                        "Me retiro a su orden, Su Majestad. Regresaré cuando lo solicite."
+                    ],
+                    "unknown": [
+                        "Lamento no comprender completamente su solicitud, Su Majestad. ¿Podría reformularla?",
+                        "Mi Rey, me temo que necesito más información para procesar adecuadamente su petición.",
+                        "Su Majestad, permítame solicitar una aclaración para poder servirle mejor."
+                    ],
+                    "acknowledgment": [
+                        "Entendido, Su Majestad.",
+                        "A sus órdenes, Mi Rey.",
+                        "Comprendido perfectamente, Su Alteza."
+                    ]
+                }
+                
+                with open(responses_file, 'w', encoding='utf-8') as f:
+                    json.dump(extended_responses, f, indent=2, ensure_ascii=False)
         except Exception as e:
             self.logger.warning(f"Error al cargar respuestas predefinidas: {str(e)}")
         
         return responses
     
-    def add_fact(self, content, category=None, importance=0.5, tags=None):
+    def add_fact(self, content, category=None, importance=0.5, tags=None, source=None):
         """
         Añade un nuevo hecho a la base de conocimiento
         
@@ -109,6 +159,7 @@ class KnowledgeBase:
             category (str, optional): Categoría del hecho
             importance (float, optional): Importancia del hecho (0-1)
             tags (list, optional): Lista de etiquetas
+            source (dict, optional): Información sobre la fuente
             
         Returns:
             str: ID del hecho añadido o None si hay error
@@ -140,6 +191,25 @@ class KnowledgeBase:
                         (fact_id, tag)
                     )
             
+            # Insertar información de fuente si existe
+            if source and isinstance(source, dict):
+                source_id = str(uuid.uuid4())
+                
+                cursor.execute(
+                    '''INSERT INTO sources 
+                       (id, fact_id, source_type, url, title, author, publication_date) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (
+                        source_id,
+                        fact_id,
+                        source.get('type', 'unknown'),
+                        source.get('url', ''),
+                        source.get('title', ''),
+                        source.get('author', ''),
+                        source.get('date', '')
+                    )
+                )
+            
             conn.commit()
             conn.close()
             
@@ -169,21 +239,21 @@ class KnowledgeBase:
             cursor = conn.cursor()
             
             # Construir consulta SQL
-            sql = 'SELECT * FROM facts WHERE 1=1'
+            sql = 'SELECT f.*, s.url, s.title FROM facts f LEFT JOIN sources s ON f.id = s.fact_id WHERE 1=1'
             params = []
             
             # Añadir filtro de texto
             if query:
-                sql += ' AND content LIKE ?'
-                params.append(f'%{query}%')
+                sql += ' AND (f.content LIKE ? OR f.category LIKE ?)'
+                params.extend([f'%{query}%', f'%{query}%'])
             
             # Añadir filtro de categoría
             if category:
-                sql += ' AND category = ?'
+                sql += ' AND f.category = ?'
                 params.append(category)
             
             # Ordenar por importancia y limitar resultados
-            sql += ' ORDER BY importance DESC LIMIT ?'
+            sql += ' ORDER BY f.importance DESC LIMIT ?'
             params.append(limit)
             
             # Ejecutar consulta
@@ -192,13 +262,29 @@ class KnowledgeBase:
             
             # Convertir a lista de diccionarios
             for row in rows:
-                results.append({
+                fact = {
                     'id': row['id'],
                     'content': row['content'],
                     'category': row['category'],
                     'importance': row['importance'],
                     'timestamp': row['timestamp']
-                })
+                }
+                
+                # Añadir fuente si existe
+                if row['url'] or row['title']:
+                    fact['source'] = {
+                        'url': row['url'],
+                        'title': row['title']
+                    }
+                    
+                # Obtener etiquetas
+                cursor.execute('SELECT tag FROM tags WHERE fact_id = ?', (row['id'],))
+                tags = cursor.fetchall()
+                
+                if tags:
+                    fact['tags'] = [tag[0] for tag in tags]
+                
+                results.append(fact)
             
             conn.close()
             
@@ -244,10 +330,49 @@ class KnowledgeBase:
                 response += fact['content']
             
             # Añadir fuente si hay categoría
-            if len(facts) > 0 and facts[0]['category']:
+            if len(facts) > 0 and facts[0].get('category'):
                 response += f" Esta información está relacionada con {facts[0]['category']}."
             
             return response
         
         # Respuesta por defecto
         return self.predefined_responses.get("unknown", "No tengo información sobre eso, Su Majestad.")
+
+    def get_training_data(self, limit=1000):
+        """
+        Obtiene datos para entrenar el modelo de lenguaje
+        
+        Args:
+            limit (int): Número máximo de hechos a retornar
+            
+        Returns:
+            list: Lista de textos para entrenamiento
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            
+            # Obtener todos los hechos
+            cursor.execute(
+                'SELECT content FROM facts ORDER BY importance DESC, timestamp DESC LIMIT ?',
+                (limit,)
+            )
+            
+            rows = cursor.fetchall()
+            conn.close()
+            
+            # Extraer contenido
+            training_data = [row[0] for row in rows if row[0]]
+            
+            # Añadir respuestas predefinidas para mejorar el modelo
+            for key, response in self.predefined_responses.items():
+                if isinstance(response, list):
+                    training_data.extend(response)
+                else:
+                    training_data.append(response)
+            
+            return training_data
+            
+        except Exception as e:
+            self.logger.error(f"Error al obtener datos de entrenamiento: {str(e)}")
+            return []

@@ -10,48 +10,82 @@ import os
 # Suprimir mensajes de TensorFlow
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0=todo, 1=INFO, 2=WARNING, 3=ERROR
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Desactivar operaciones oneDNN
+
+# Configurar variables de entorno para PyQt
+os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1'
+os.environ['QT_SCALE_FACTOR'] = '1'
+
 import logging
 import sys
-import threading
 import json
 import traceback
 import time
 from datetime import datetime
-from modules.knowledge_harvester import KnowledgeHarvester
-from modules.content_moderator import ContentModerator
+import importlib.util
+import pkg_resources
 
 # Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-def fix_qt_display_issue():
-    import os
-    # Establecer estas variables de entorno puede ayudar en algunos sistemas
-    os.environ['QT_QPA_PLATFORM'] = 'xcb'  # Para Linux
-    # os.environ['QT_QPA_PLATFORM'] = 'windows'  # Para Windows
-    # os.environ['QT_QPA_PLATFORM'] = 'cocoa'  # Para macOS
+def configure_logging():
+    """Configura el sistema de registro (logging)"""
+    # Crear directorio de logs si no existe
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
     
-    # Deshabilitar effects de Qt6 que pueden causar problemas
-    os.environ['QT_ENABLE_HIGHDPI_SCALING'] = '0'
-    os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1'
-    os.environ['QT_SCALE_FACTOR'] = '1'
+    # Configurar formato y nivel de logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('logs/ai_system.log'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
 
-# Verificación de dependencias críticas antes de importar módulos personalizados
+# Verificación de dependencias críticas
 def check_dependencies():
     """Verifica que las dependencias críticas estén instaladas"""
-    try:
-        import tensorflow as tf
-        import numpy as np
-        import spacy
-        import nltk
-        import PyQt6
-        return True
-    except ImportError as e:
-        print(f"Error: Falta una dependencia crítica: {str(e)}")
-        print("Ejecute 'pip install -r requirements.txt' para instalar todas las dependencias")
+    required_packages = {
+        'tensorflow': '2.10.0',
+        'numpy': '1.22.0',
+        'PyQt6': '6.2.0',
+        'nltk': '3.7',
+        'gtts': '2.2.4',
+        'pygame': '2.1.2'
+    }
+    
+    missing_packages = []
+    
+    for package, min_version in required_packages.items():
+        try:
+            # Verificar si el paquete está instalado
+            spec = importlib.util.find_spec(package)
+            if spec is None:
+                missing_packages.append(f"{package} (>={min_version})")
+                continue
+            
+            # Verificar la versión instalada
+            try:
+                installed_version = pkg_resources.get_distribution(package).version
+                if pkg_resources.parse_version(installed_version) < pkg_resources.parse_version(min_version):
+                    missing_packages.append(f"{package} (>={min_version}, found {installed_version})")
+            except:
+                # Si no podemos verificar la versión, continuamos
+                pass
+                
+        except ModuleNotFoundError:
+            missing_packages.append(f"{package} (>={min_version})")
+    
+    if missing_packages:
+        logging.error("Faltan dependencias requeridas:")
+        for package in missing_packages:
+            logging.error(f"  - {package}")
+        logging.error("Ejecute 'pip install -r requirements.txt' para instalar todas las dependencias")
         return False
+    
+    return True
+
+# Configurar logging antes que nada
+configure_logging()
 
 # Verificar dependencias antes de continuar
 if not check_dependencies():
@@ -65,62 +99,12 @@ try:
     from modules.knowledge_base import KnowledgeBase
     from modules.config_manager import ConfigManager
     from modules.gui import ApplicationGUI
+    from modules.knowledge_harvester import KnowledgeHarvester 
+    from modules.content_moderator import ContentModerator
 except ImportError as e:
-    print(f"Error al importar módulos personalizados: {str(e)}")
-    print("Asegúrese de que todos los archivos estén en las ubicaciones correctas")
+    logging.error(f"Error al importar módulos personalizados: {str(e)}")
+    logging.error("Asegúrese de que todos los archivos estén en las ubicaciones correctas")
     sys.exit(1)
-
-def configure_robust_logging():
-    """Implementa sistema de logging tolerante a codificaciones Unicode variable"""
-    # Crear directorio de logs si no existe
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    
-    # Generar nombre de archivo de log con timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = f'logs/ai_system_{timestamp}.log'
-    
-    # Configurar handler de archivo con codificación explícita
-    file_handler = logging.FileHandler(log_file, encoding='utf-8')
-    
-    # Configurar handler de consola con gestión de errores de codificación
-    class EncodingCompatibleStreamHandler(logging.StreamHandler):
-        def emit(self, record):
-            try:
-                msg = self.format(record)
-                stream = self.stream
-                stream.write(msg + self.terminator)
-                self.flush()
-            except UnicodeEncodeError:
-                # Fallback a codificación ASCII con reemplazo de caracteres no ASCII
-                stream.write(msg.encode('ascii', 'replace').decode('ascii') + self.terminator)
-                self.flush()
-    
-    console_handler = EncodingCompatibleStreamHandler(sys.stdout)
-    
-    # Formatear mensajes de log
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-    
-    # Aplicar configuración
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
-    root_logger.addHandler(file_handler)
-    root_logger.addHandler(console_handler)
-    
-    # Redirigir excepciones no capturadas al log
-    def handle_exception(exc_type, exc_value, exc_traceback):
-        if issubclass(exc_type, KeyboardInterrupt):
-            # No manejar Ctrl+C
-            sys.__excepthook__(exc_type, exc_value, exc_traceback)
-            return
-            
-        # Registrar la excepción en el log
-        logger = logging.getLogger('root')
-        logger.error("Excepción no capturada:", exc_info=(exc_type, exc_value, exc_traceback))
-        
-    sys.excepthook = handle_exception
 
 class AISystem:
     """Clase principal del sistema de IA"""
@@ -169,26 +153,32 @@ class AISystem:
                 "version": "1.0.0",
                 "log_level": "INFO"
             },
-            "voice": {
+            "voice_settings": {
                 "enabled": True,
                 "language": "es",
-                "voice_id": "com.mx",
-                "rate": 1.0,
+                "tld": "com.mx",
+                "speed": 1.0,
                 "volume": 1.0
             },
             "knowledge": {
                 "auto_harvesting": True,
                 "harvesting_interval": 3600
             },
-            "ml": {
+            "ml_settings": {
+                "continuous_learning": true,
                 "training_interval": 86400,
+                "batch_size": 64,
+                "epochs": 5,
+                "learning_rate": 0.001,
+                "validation_split": 0.2,
                 "model_backup_interval": 604800
             },
-            "gui": {
+            "ui_settings": {
                 "theme": "dark",
-                "font_size": 12,
-                "window_width": 1200,
-                "window_height": 800
+                "font_size": 10,
+                "window_width": 1024,
+                "window_height": 768,
+                "show_welcome": true
             }
         }
         
@@ -201,43 +191,78 @@ class AISystem:
     
     def _init_components(self):
         """Inicializa los componentes del sistema con manejo de errores"""
-        # Inicializar gestor de configuración PRIMERO
+        # Inicializar componentes en orden de dependencia
+        self.components = {}
+        
+        # 1. Config Manager (primero, ya que otros componentes lo necesitan)
         try:
             self.config_manager = ConfigManager(self.config_file)
+            self.components['config_manager'] = self.config_manager
         except Exception as e:
             self.logger.error(f"Error al inicializar gestor de configuración: {str(e)}")
             self.config_manager = None
         
-        # Inicializar base de conocimiento
+        # 2. Knowledge Base
         try:
             self.knowledge_base = KnowledgeBase(self.db_file)
+            self.components['knowledge_base'] = self.knowledge_base
         except Exception as e:
             self.logger.error(f"Error al inicializar base de conocimiento: {str(e)}")
             self.knowledge_base = None
         
-        # Inicializar procesador de texto
+        # 3. Text Processor
         try:
             self.text_processor = TextProcessor()
+            self.components['text_processor'] = self.text_processor
         except Exception as e:
             self.logger.error(f"Error al inicializar procesador de texto: {str(e)}")
             self.text_processor = None
         
-        # Inicializar moderador de contenido (sin restricciones)
+        # 4. Voice Manager
+        try:
+            self.voice_manager = VoiceManager()
+            
+            # Configurar según settings si está disponible
+            if self.config_manager:
+                lang = self.config_manager.get('voice_settings', 'language', 'es')
+                tld = self.config_manager.get('voice_settings', 'tld', 'com.mx')
+                
+                if hasattr(self.voice_manager, 'set_language'):
+                    self.voice_manager.set_language(lang)
+                
+                if hasattr(self.voice_manager, 'set_voice'):
+                    self.voice_manager.set_voice(tld)
+                    self.components['voice_manager'] = self.voice_manager
+        except Exception as e:
+            self.logger.error(f"Error al inicializar gestor de voz: {str(e)}")
+            self.voice_manager = None
+        
+        # 5. Content Moderator
         try:
             self.content_moderator = ContentModerator()
+            self.components['content_moderator'] = self.content_moderator
         except Exception as e:
             self.logger.error(f"Error al inicializar moderador de contenido: {str(e)}")
             self.content_moderator = None
         
-        # Inicializar motor ML
+        # 6. ML Engine (depende de knowledge_base)
         try:
             if self.knowledge_base:
+                # Configurar opciones desde el archivo de configuración
+                max_seq_length = 100
+                embedding_dim = 256
+                
+                if self.config_manager:
+                    max_seq_length = self.config_manager.get('language_model', 'max_sequence_length', 100)
+                    embedding_dim = self.config_manager.get('language_model', 'embedding_dimension', 256)
+                
                 self.ml_engine = MLEngine(
                     model_path=self.models_dir,
                     knowledge_base=self.knowledge_base,
-                    max_sequence_length=100,
-                    embedding_dim=256
+                    max_sequence_length=max_seq_length,
+                    embedding_dim=embedding_dim
                 )
+                self.components['ml_engine'] = self.ml_engine
             else:
                 self.logger.error("No se puede inicializar ML Engine: knowledge_base no disponible")
                 self.ml_engine = None
@@ -245,28 +270,11 @@ class AISystem:
             self.logger.error(f"Error al inicializar motor ML: {str(e)}")
             self.ml_engine = None
         
-        # Inicializar gestor de voz
-        try:
-            self.voice_manager = VoiceManager()
-            
-            # Configurarlo (opcional, si está implementado)
-            if hasattr(self.voice_manager, 'set_language') and self.config_manager:
-                self.voice_manager.set_language(
-                    self.config_manager.get('voice', 'language', default='es')
-                )
-            if hasattr(self.voice_manager, 'set_voice') and self.config_manager:
-                self.voice_manager.set_voice(
-                    self.config_manager.get('voice', 'voice_id', default='com.mx')
-                )
-        except Exception as e:
-            self.logger.error(f"Error al inicializar gestor de voz: {str(e)}")
-            self.voice_manager = None
-        
-        # AHORA inicializar el recolector de conocimiento (DESPUÉS de KB y text_processor)
+        # 7. Knowledge Harvester (depende de knowledge_base y text_processor)
         try:
             if self.knowledge_base and self.text_processor:
                 self.knowledge_harvester = KnowledgeHarvester(self.knowledge_base, self.text_processor)
-                self.logger.info("Recolector de conocimiento inicializado correctamente")
+                self.components['knowledge_harvester'] = self.knowledge_harvester
             else:
                 self.logger.error("No se pudo inicializar recolector: falta knowledge_base o text_processor")
                 self.knowledge_harvester = None
@@ -278,7 +286,7 @@ class AISystem:
         """Inicia todos los servicios de la IA y lanza la interfaz gráfica"""
         if self.is_running:
             self.logger.warning("El sistema ya está en ejecución")
-            return
+            return 0
         
         self.logger.info("Iniciando sistema de IA...")
         
@@ -300,8 +308,14 @@ class AISystem:
             self.is_running = True
             
             # Iniciar la interfaz gráfica
-            self.gui = ApplicationGUI(self)
-            return self.gui.run()
+            try:
+                self.gui = ApplicationGUI(self)
+                return self.gui.run()
+            except Exception as e:
+                self.logger.error(f"Error al iniciar la interfaz gráfica: {str(e)}")
+                self.shutdown()
+                return 1
+                
         except Exception as e:
             self.logger.error(f"Error al iniciar el sistema: {str(e)}")
             traceback.print_exc()
@@ -325,7 +339,11 @@ class AISystem:
             if self.ml_engine:
                 response = self.ml_engine.generate_response(user_input, self.conversation_history)
             else:
-                response = "Lo siento, Su Majestad, el motor de procesamiento no está disponible en este momento."
+                # Usar respuesta predefinida si no está disponible el motor ML
+                if self.knowledge_base:
+                    response = self.knowledge_base.get_predefined_response(user_input)
+                else:
+                    response = "Lo siento, Su Majestad, el motor de procesamiento no está disponible en este momento."
             
             # Guardar respuesta en historial
             self.conversation_history.append({
@@ -335,7 +353,7 @@ class AISystem:
             })
             
             # Generar respuesta de voz si está habilitado
-            if use_voice and self.voice_manager:
+            if use_voice and self.voice_manager and self.voice_manager.is_running:
                 self.voice_manager.speak(response)
             
             return response
@@ -364,24 +382,18 @@ class AISystem:
         except Exception as e:
             self.logger.error(f"Error al guardar historial: {str(e)}")
         
-        # Detener componentes en orden inverso
-        try:
-            if hasattr(self, 'ml_engine') and self.ml_engine:
-                self.ml_engine.stop()
-        except Exception as e:
-            self.logger.error(f"Error al detener motor ML: {str(e)}")
+        # Detener componentes en orden inverso a la inicialización
+        components_to_stop = ['knowledge_harvester', 'ml_engine', 'voice_manager']
         
-        try:
-            if hasattr(self, 'voice_manager') and self.voice_manager:
-                self.voice_manager.stop()
-        except Exception as e:
-            self.logger.error(f"Error al detener gestor de voz: {str(e)}")
-        
-        try:
-            if hasattr(self, 'knowledge_harvester') and self.knowledge_harvester and self.knowledge_harvester.is_running:
-                self.knowledge_harvester.stop()
-        except Exception as e:
-            self.logger.error(f"Error al detener recolector de conocimiento: {str(e)}")
+        for component_name in components_to_stop:
+            if component_name in self.components:
+                component = self.components[component_name]
+                try:
+                    if hasattr(component, 'stop'):
+                        component.stop()
+                        self.logger.info(f"Componente {component_name} detenido correctamente")
+                except Exception as e:
+                    self.logger.error(f"Error al detener {component_name}: {str(e)}")
         
         self.is_running = False
         self.logger.info("Sistema de IA apagado correctamente")
@@ -395,8 +407,7 @@ def main():
     print("                    Versión 1.0.0")
     print("="*80)
     print("Inicializando componentes...")
-    print("  \\ Cargando sistema...")
-    
+
     # Crear e iniciar sistema
     system = AISystem()
     print("Sistema listo!")
