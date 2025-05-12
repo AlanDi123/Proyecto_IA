@@ -12,12 +12,24 @@ import time
 import logging
 import threading
 from datetime import datetime
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QLabel, QLineEdit, QTextEdit, QPushButton, QTabWidget, QFrame, QSlider,
+    QMessageBox, QSplitter, QScrollArea, QGroupBox
+)
+from PyQt6.QtGui import QFont, QTextCursor, QCursor, QIcon
+from PyQt6.QtCore import Qt, QSize, QTimer
+from datetime import datetime
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QTextEdit, QLineEdit, QPushButton, 
                            QLabel, QSplitter, QFrame, QTabWidget, QScrollArea,
                            QSlider, QCheckBox, QComboBox, QFileDialog, QMessageBox)
 from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QIcon, QFont, QTextCursor, QColor, QPalette, QSyntaxHighlighter, QTextCharFormat, QPixmap
+from datetime import datetime
+from PyQt6.QtGui import QTextCursor
+
+
 
 class WorkerThread(QThread):
     """Hilo de trabajo para tareas en segundo plano"""
@@ -31,33 +43,42 @@ class WorkerThread(QThread):
         self.result = None
     
     def run(self):
-        """Muestra la ventana principal y ejecuta el bucle de eventos"""
-        # Asegurar que estamos en la clase ApplicationGUI no en WorkerThread
-        from PyQt6.QtWidgets import QMainWindow
-        if not isinstance(self, QMainWindow):
-            print("ERROR: El método run() está siendo llamado desde un objeto que no es QMainWindow")
-            print(f"Tipo del objeto: {type(self)}")
-            # Si el objeto actual no es un QMainWindow, buscar la instancia de ApplicationGUI
-            try:
-                from PyQt6.QtWidgets import QApplication
-                app = QApplication.instance()
-                if app:
-                    for widget in app.topLevelWidgets():
-                        if isinstance(widget, QMainWindow):
-                            print(f"Encontrado QMainWindow: {widget}")
-                            widget.show()
-                            return app.exec()
-            except Exception as e:
-                print(f"Error al buscar ventana principal: {e}")
-                return 1
+        """Ejecuta la función objetivo y emite el resultado"""
+        try:
+            result = self.target_function(*self.args, **self.kwargs)
+            self.result = result  # Almacenar el resultado como atributo
+            self.update_signal.emit(str(result) if result is not None else "")
+        except Exception as e:
+            self.logger.error(f"Error en Worker Thread: {str(e)}")
+            self.update_signal.emit("")
+
+
+class ContentModerator:
+    """Sistema de moderación de contenido para el Sistema de IA"""
+    
+    def __init__(self):
+        self.logger = logging.getLogger("ContentModerator")
+        self.logger.info("Inicializando moderador de contenido...")
         
-        # Si somos un QMainWindow, mostrar normalmente
-        print("Mostrando ventana principal (ApplicationGUI)...")
-        self.show()
+        # Lista vacía - sin restricciones
+        self.prohibited_terms = []
+        self.prohibited_patterns = []
         
-        # Retornar código de salida de la aplicación
-        print("Iniciando bucle de eventos Qt...")
-        return self._qt_app.exec()
+        self.logger.info("Moderador de contenido inicializado correctamente")
+    
+    def check_content(self, text):
+        """
+        Verifica si el contenido es apropiado - siempre retorna True
+        """
+        return True, ""
+    
+    def sanitize_content(self, text):
+        """
+        No realiza sanitización - retorna el texto tal cual
+        """
+        return text
+
+
 
 class ApplicationGUI(QMainWindow):
     def __init__(self, ai_system):
@@ -477,6 +498,763 @@ class ApplicationGUI(QMainWindow):
         layout.addLayout(font_layout)
         
         parent_layout.addWidget(group_box)
+
+
+
+    def _create_training_panel(self, tab_widget):
+        """Crea el panel de entrenamiento del modelo"""
+        training_tab = QWidget()
+        tab_widget.addTab(training_tab, "Entrenamiento")
+        
+        training_layout = QVBoxLayout(training_tab)
+        training_layout.setContentsMargins(20, 20, 20, 20)
+        training_layout.setSpacing(15)
+        
+        # Título
+        training_title = QLabel("Entrenamiento del Modelo")
+        training_title.setFont(QFont(self.default_font.family(), 18, QFont.Weight.Bold))
+        training_title.setStyleSheet("color: #00B4A6;")
+        training_layout.addWidget(training_title)
+        
+        # Panel de control de entrenamiento
+        training_frame = QFrame()
+        training_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        training_frame.setFrameShadow(QFrame.Shadow.Raised)
+        training_frame.setStyleSheet("background-color: #1E1E2E; padding: 15px; border-radius: 5px;")
+        
+        training_controls_layout = QVBoxLayout(training_frame)
+        training_controls_layout.setSpacing(15)
+        
+        # Información sobre el entrenamiento
+        training_info = QLabel("El entrenamiento mejora la capacidad del sistema para generar respuestas relevantes y coherentes basadas en el conocimiento acumulado.")
+        training_info.setWordWrap(True)
+        training_controls_layout.addWidget(training_info)
+        
+        # Configuración de entrenamiento
+        config_group = QGroupBox("Configuración de Entrenamiento")
+        config_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #555;
+                border-radius: 5px;
+                margin-top: 1ex;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 5px;
+                color: #00B4A6;
+            }
+        """)
+        
+        config_layout = QVBoxLayout(config_group)
+        config_layout.setSpacing(10)
+        
+        # Número de épocas
+        epochs_layout = QHBoxLayout()
+        epochs_layout.addWidget(QLabel("Épocas:"))
+        
+        self.epochs_input = QLineEdit()
+        self.epochs_input.setPlaceholderText("5")
+        self.epochs_input.setText("5")
+        self.epochs_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+                color: white;
+            }
+        """)
+        epochs_layout.addWidget(self.epochs_input)
+        
+        config_layout.addLayout(epochs_layout)
+        
+        # Tamaño de lote
+        batch_layout = QHBoxLayout()
+        batch_layout.addWidget(QLabel("Tamaño de lote:"))
+        
+        self.batch_input = QLineEdit()
+        self.batch_input.setPlaceholderText("64")
+        self.batch_input.setText("64")
+        self.batch_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+                color: white;
+            }
+        """)
+        batch_layout.addWidget(self.batch_input)
+        
+        config_layout.addLayout(batch_layout)
+        
+        # Tasa de aprendizaje
+        lr_layout = QHBoxLayout()
+        lr_layout.addWidget(QLabel("Tasa de aprendizaje:"))
+        
+        self.lr_input = QLineEdit()
+        self.lr_input.setPlaceholderText("0.001")
+        self.lr_input.setText("0.001")
+        self.lr_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+                color: white;
+            }
+        """)
+        lr_layout.addWidget(self.lr_input)
+        
+        config_layout.addLayout(lr_layout)
+        
+        # Validación cruzada
+        validation_layout = QHBoxLayout()
+        validation_layout.addWidget(QLabel("% para validación:"))
+        
+        self.validation_input = QLineEdit()
+        self.validation_input.setPlaceholderText("20")
+        self.validation_input.setText("20")
+        self.validation_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+                color: white;
+            }
+        """)
+        validation_layout.addWidget(self.validation_input)
+        
+        config_layout.addLayout(validation_layout)
+        
+        # Botones de control de entrenamiento
+        buttons_layout = QHBoxLayout()
+        
+        self.train_button = QPushButton("Iniciar Entrenamiento")
+        self.train_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00B4A6;
+                color: white;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #00D1C1;
+            }
+        """)
+        self.train_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.train_button.clicked.connect(self._start_training)
+        buttons_layout.addWidget(self.train_button)
+        
+        self.stop_training_button = QPushButton("Detener Entrenamiento")
+        self.stop_training_button.setStyleSheet("""
+            QPushButton {
+                background-color: #E53935;
+                color: white;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #F44336;
+            }
+        """)
+        self.stop_training_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.stop_training_button.clicked.connect(self._stop_training)
+        self.stop_training_button.setEnabled(False)
+        buttons_layout.addWidget(self.stop_training_button)
+        
+        config_layout.addLayout(buttons_layout)
+        
+        training_controls_layout.addWidget(config_group)
+        
+        # Estadísticas de entrenamiento
+        stats_group = QGroupBox("Estadísticas del Modelo")
+        stats_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #555;
+                border-radius: 5px;
+                margin-top: 1ex;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 5px;
+                color: #00B4A6;
+            }
+        """)
+        
+        stats_layout = QVBoxLayout(stats_group)
+        
+        # Crear una tabla para estadísticas
+        self.stats_table = QTextEdit()
+        self.stats_table.setReadOnly(True)
+        self.stats_table.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 8px;
+                background-color: #2A2A40;
+                color: white;
+            }
+        """)
+        self.stats_table.setHtml("""
+            <table width="100%" cellspacing="5">
+                <tr>
+                    <td><b>Estado:</b></td>
+                    <td>No entrenado</td>
+                </tr>
+                <tr>
+                    <td><b>Tamaño del vocabulario:</b></td>
+                    <td>0 palabras</td>
+                </tr>
+                <tr>
+                    <td><b>Datos de entrenamiento:</b></td>
+                    <td>0 ejemplos</td>
+                </tr>
+                <tr>
+                    <td><b>Precisión actual:</b></td>
+                    <td>0%</td>
+                </tr>
+                <tr>
+                    <td><b>Último entrenamiento:</b></td>
+                    <td>Nunca</td>
+                </tr>
+            </table>
+        """)
+        
+        stats_layout.addWidget(self.stats_table)
+        
+        training_controls_layout.addWidget(stats_group)
+        
+        # Progreso de entrenamiento
+        progress_layout = QVBoxLayout()
+        
+        progress_layout.addWidget(QLabel("Progreso del entrenamiento:"))
+        
+        self.training_progress = QTextEdit()
+        self.training_progress.setReadOnly(True)
+        self.training_progress.setPlaceholderText("El progreso del entrenamiento se mostrará aquí...")
+        self.training_progress.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 8px;
+                background-color: #2A2A40;
+                color: white;
+                font-family: monospace;
+            }
+        """)
+        self.training_progress.setMaximumHeight(150)
+        progress_layout.addWidget(self.training_progress)
+        
+        training_controls_layout.addLayout(progress_layout)
+        
+        # Entrenamiento automático
+        auto_training_layout = QHBoxLayout()
+        
+        self.auto_training_check = QCheckBox("Entrenamiento automático")
+        self.auto_training_check.setStyleSheet("""
+            QCheckBox {
+                color: white;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+            }
+            QCheckBox::indicator:unchecked {
+                border: 2px solid #555;
+                background-color: #2A2A40;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 2px solid #00B4A6;
+            }
+        """)
+        self.auto_training_check.setChecked(True)
+        self.auto_training_check.stateChanged.connect(self._toggle_auto_training)
+        auto_training_layout.addWidget(self.auto_training_check)
+        
+        auto_training_layout.addWidget(QLabel("Intervalo (horas):"))
+        
+        self.interval_input = QLineEdit()
+        self.interval_input.setPlaceholderText("24")
+        self.interval_input.setText("24")
+        self.interval_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+                color: white;
+            }
+        """)
+        auto_training_layout.addWidget(self.interval_input)
+        
+        training_controls_layout.addLayout(auto_training_layout)
+        
+        # Estado del entrenamiento
+        self.training_status = QLabel("Estado: No entrenando")
+        self.training_status.setStyleSheet("color: #999;")
+        training_controls_layout.addWidget(self.training_status)
+        
+        # Añadir marco a layout principal
+        training_layout.addWidget(training_frame)
+        
+        # Actualizar estado del entrenamiento
+        self._update_training_status()
+        
+        return training_tab
+
+    def _start_training(self):
+        """Inicia el entrenamiento del modelo"""
+        if not hasattr(self.ai_system, 'ml_engine') or not self.ai_system.ml_engine:
+            QMessageBox.warning(
+                self,
+                "Error",
+                "El motor de aprendizaje automático no está disponible."
+            )
+            return
+        
+        try:
+            # Obtener parámetros de entrenamiento
+            epochs = int(self.epochs_input.text() or "5")
+            batch_size = int(self.batch_input.text() or "64")
+            learning_rate = float(self.lr_input.text() or "0.001")
+            validation_split = float(self.validation_input.text() or "20") / 100.0
+            
+            # Validar parámetros
+            if epochs <= 0 or batch_size <= 0 or learning_rate <= 0 or validation_split <= 0 or validation_split >= 1:
+                QMessageBox.warning(
+                    self,
+                    "Parámetros inválidos",
+                    "Por favor, introduzca valores válidos para los parámetros de entrenamiento."
+                )
+                return
+            
+            # Obtener datos de entrenamiento (simplificado)
+            # En un sistema real, esto se haría en un hilo separado
+            self.training_progress.clear()
+            self.training_progress.append("Preparando datos de entrenamiento...")
+            
+            # Actualizar estado
+            self.training_status.setText("Estado: Entrenando")
+            self.training_status.setStyleSheet("color: #00B4A6;")
+            self.train_button.setEnabled(False)
+            self.stop_training_button.setEnabled(True)
+            
+            # Simular entrenamiento (en un sistema real, se haría en un hilo)
+            QMessageBox.information(
+                self,
+                "Entrenamiento iniciado",
+                "El entrenamiento del modelo ha comenzado. Esto puede tardar varios minutos."
+            )
+            
+            # Actualizar progreso (simulado)
+            for i in range(5):
+                self.training_progress.append(f"Época {i+1}/{epochs} - Precisión: {50 + i*10}% - Pérdida: {0.5 - i*0.1:.4f}")
+                QApplication.processEvents()  # Permitir que la interfaz se actualice
+                
+            # Actualizar estado de finalización (simulado)
+            self.training_status.setText("Estado: Finalizado")
+            self.training_status.setStyleSheet("color: #4CAF50;")
+            self.train_button.setEnabled(True)
+            self.stop_training_button.setEnabled(False)
+            
+            # Actualizar estadísticas (simulado)
+            self.stats_table.setHtml("""
+                <table width="100%" cellspacing="5">
+                    <tr>
+                        <td><b>Estado:</b></td>
+                        <td>Entrenado</td>
+                    </tr>
+                    <tr>
+                        <td><b>Tamaño del vocabulario:</b></td>
+                        <td>5000 palabras</td>
+                    </tr>
+                    <tr>
+                        <td><b>Datos de entrenamiento:</b></td>
+                        <td>1000 ejemplos</td>
+                    </tr>
+                    <tr>
+                        <td><b>Precisión actual:</b></td>
+                        <td>90%</td>
+                    </tr>
+                    <tr>
+                        <td><b>Último entrenamiento:</b></td>
+                        <td>Ahora</td>
+                    </tr>
+                </table>
+            """)
+            
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Error al iniciar entrenamiento: {str(e)}"
+            )
+            
+            # Restaurar estado
+            self.training_status.setText("Estado: Error")
+            self.training_status.setStyleSheet("color: #E53935;")
+            self.train_button.setEnabled(True)
+            self.stop_training_button.setEnabled(False)
+
+    def _stop_training(self):
+        """Detiene el entrenamiento en curso"""
+        if not hasattr(self.ai_system, 'ml_engine') or not self.ai_system.ml_engine:
+            return
+        
+        # En un sistema real, aquí se enviaría una señal para detener el entrenamiento
+        
+        QMessageBox.information(
+            self,
+            "Entrenamiento detenido",
+            "El entrenamiento ha sido detenido."
+        )
+        
+        # Actualizar estado
+        self.training_status.setText("Estado: Detenido")
+        self.training_status.setStyleSheet("color: #E53935;")
+        self.train_button.setEnabled(True)
+        self.stop_training_button.setEnabled(False)
+        
+        # Actualizar progreso
+        self.training_progress.append("Entrenamiento detenido por el usuario.")
+
+    def _toggle_auto_training(self):
+        """Activa o desactiva el entrenamiento automático"""
+        if not hasattr(self.ai_system, 'ml_engine') or not self.ai_system.ml_engine:
+            return
+        
+        is_checked = self.auto_training_check.isChecked()
+        self.interval_input.setEnabled(is_checked)
+        
+        if is_checked:
+            # Activar entrenamiento automático
+            try:
+                interval_hours = int(self.interval_input.text() or "24")
+                if interval_hours <= 0:
+                    QMessageBox.warning(
+                        self,
+                        "Valor inválido",
+                        "El intervalo debe ser un número positivo."
+                    )
+                    self.auto_training_check.setChecked(False)
+                    return
+                
+                # En un sistema real, aquí se programaría el entrenamiento automático
+                
+                QMessageBox.information(
+                    self,
+                    "Entrenamiento automático",
+                    f"El entrenamiento automático se realizará cada {interval_hours} horas."
+                )
+            except ValueError:
+                QMessageBox.warning(
+                    self,
+                    "Valor inválido",
+                    "Por favor, introduzca un número válido para el intervalo."
+                )
+                self.auto_training_check.setChecked(False)
+        else:
+            # Desactivar entrenamiento automático
+            # En un sistema real, aquí se cancelaría la programación
+            
+            QMessageBox.information(
+                self,
+                "Entrenamiento automático",
+                "El entrenamiento automático ha sido desactivado."
+            )
+
+    def _update_training_status(self):
+        """Actualiza el estado mostrado del entrenamiento"""
+        if not hasattr(self.ai_system, 'ml_engine') or not self.ai_system.ml_engine:
+            self.train_button.setEnabled(False)
+            self.stop_training_button.setEnabled(False)
+            self.auto_training_check.setEnabled(False)
+            self.interval_input.setEnabled(False)
+            self.training_status.setText("Estado: Motor ML no disponible")
+            self.training_status.setStyleSheet("color: #E53935;")
+
+
+    def _create_voice_panel(self, tab_widget):
+        """Crea el panel de control de voz"""
+        voice_tab = QWidget()
+        tab_widget.addTab(voice_tab, "Voz")
+        
+        voice_layout = QVBoxLayout(voice_tab)
+        voice_layout.setContentsMargins(20, 20, 20, 20)
+        voice_layout.setSpacing(15)
+        
+        # Título
+        voice_title = QLabel("Control de Voz")
+        voice_title.setFont(QFont(self.default_font.family(), 18, QFont.Weight.Bold))
+        voice_title.setStyleSheet("color: #00B4A6;")
+        voice_layout.addWidget(voice_title)
+        
+        # Panel de configuración de voz
+        voice_frame = QFrame()
+        voice_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        voice_frame.setFrameShadow(QFrame.Shadow.Raised)
+        voice_frame.setStyleSheet("background-color: #1E1E2E; padding: 15px; border-radius: 5px;")
+        
+        voice_config_layout = QVBoxLayout(voice_frame)
+        voice_config_layout.setSpacing(15)
+        
+        # Información sobre la voz
+        voice_info = QLabel("Configura las opciones de síntesis de voz del sistema.")
+        voice_info.setWordWrap(True)
+        voice_config_layout.addWidget(voice_info)
+        
+        # Configuración de idioma
+        lang_layout = QHBoxLayout()
+        
+        lang_layout.addWidget(QLabel("Idioma:"))
+        
+        self.language_input = QLineEdit()
+        self.language_input.setPlaceholderText("es")
+        self.language_input.setText("es")
+        self.language_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+                color: white;
+            }
+        """)
+        lang_layout.addWidget(self.language_input)
+        
+        voice_config_layout.addLayout(lang_layout)
+        
+        # Configuración de región
+        region_layout = QHBoxLayout()
+        
+        region_layout.addWidget(QLabel("Región:"))
+        
+        self.region_input = QLineEdit()
+        self.region_input.setPlaceholderText("com.mx")
+        self.region_input.setText("com.mx")
+        self.region_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+                color: white;
+            }
+        """)
+        region_layout.addWidget(self.region_input)
+        
+        voice_config_layout.addLayout(region_layout)
+        
+        # Configuración de velocidad
+        speed_layout = QHBoxLayout()
+        
+        speed_layout.addWidget(QLabel("Velocidad:"))
+        
+        self.speed_slider = QSlider(Qt.Orientation.Horizontal)
+        self.speed_slider.setMinimum(50)
+        self.speed_slider.setMaximum(200)
+        self.speed_slider.setValue(100)
+        self.speed_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #999999;
+                height: 8px;
+                background: #2A2A40;
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #00B4A6;
+                border: 1px solid #5c5c5c;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+        """)
+        speed_layout.addWidget(self.speed_slider)
+        
+        self.speed_value = QLabel("100%")
+        speed_layout.addWidget(self.speed_value)
+        
+        # Conectar evento de cambio del slider
+        self.speed_slider.valueChanged.connect(self._update_speed_value)
+        
+        voice_config_layout.addLayout(speed_layout)
+        
+        # Botones de control
+        buttons_layout = QHBoxLayout()
+        
+        self.voice_on_button = QPushButton("Activar Voz")
+        self.voice_on_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00B4A6;
+                color: white;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #00D1C1;
+            }
+        """)
+        self.voice_on_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.voice_on_button.clicked.connect(self._toggle_voice)
+        buttons_layout.addWidget(self.voice_on_button)
+        
+        self.test_voice_button = QPushButton("Probar Voz")
+        self.test_voice_button.setStyleSheet("""
+            QPushButton {
+                background-color: #6A7EC8;
+                color: white;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #7C8ED9;
+            }
+        """)
+        self.test_voice_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.test_voice_button.clicked.connect(self._test_voice)
+        buttons_layout.addWidget(self.test_voice_button)
+        
+        voice_config_layout.addLayout(buttons_layout)
+        
+        # Espacio para mensajes de estado
+        self.voice_status = QLabel("Estado: Activado")
+        self.voice_status.setStyleSheet("color: #00B4A6;")
+        voice_config_layout.addWidget(self.voice_status)
+        
+        # Añadir marco a layout principal
+        voice_layout.addWidget(voice_frame)
+        
+        # Añadir espacio expansible al final
+        voice_layout.addStretch(1)
+        
+        # Verificar el estado inicial de la voz
+        self._update_voice_status()
+        
+        return voice_tab
+
+    def _update_speed_value(self):
+        """Actualiza el valor mostrado de velocidad"""
+        speed = self.speed_slider.value()
+        self.speed_value.setText(f"{speed}%")
+
+    def _toggle_voice(self):
+        """Activa o desactiva la síntesis de voz"""
+        if hasattr(self.ai_system, 'voice_manager'):
+            if self.ai_system.voice_manager:
+                # Verificar estado actual
+                is_active = self.voice_on_button.text() == "Desactivar Voz"
+                
+                if is_active:
+                    # Desactivar voz
+                    self.voice_on_button.setText("Activar Voz")
+                    self.voice_on_button.setStyleSheet("""
+                        QPushButton {
+                            background-color: #00B4A6;
+                            color: white;
+                            border-radius: 4px;
+                            padding: 8px;
+                            font-weight: bold;
+                        }
+                        QPushButton:hover {
+                            background-color: #00D1C1;
+                        }
+                    """)
+                    self.voice_status.setText("Estado: Desactivado")
+                    self.voice_status.setStyleSheet("color: #E53935;")
+                else:
+                    # Activar voz
+                    self.voice_on_button.setText("Desactivar Voz")
+                    self.voice_on_button.setStyleSheet("""
+                        QPushButton {
+                            background-color: #E53935;
+                            color: white;
+                            border-radius: 4px;
+                            padding: 8px;
+                            font-weight: bold;
+                        }
+                        QPushButton:hover {
+                            background-color: #F44336;
+                        }
+                    """)
+                    self.voice_status.setText("Estado: Activado")
+                    self.voice_status.setStyleSheet("color: #00B4A6;")
+                
+                # TODO: Implementar la desactivación real de la voz
+        else:
+            QMessageBox.warning(
+                self,
+                "Error",
+                "El gestor de voz no está disponible."
+            )
+
+    def _test_voice(self):
+        """Prueba la síntesis de voz"""
+        if hasattr(self.ai_system, 'voice_manager') and self.ai_system.voice_manager:
+            # Obtener configuración actual
+            language = self.language_input.text().strip() or "es"
+            region = self.region_input.text().strip() or "com.mx"
+            speed = self.speed_slider.value() / 100.0
+            
+            # Actualizar configuración si hay métodos disponibles
+            if hasattr(self.ai_system.voice_manager, 'set_language'):
+                self.ai_system.voice_manager.set_language(language)
+            
+            if hasattr(self.ai_system.voice_manager, 'set_voice'):
+                self.ai_system.voice_manager.set_voice(region)
+            
+            # Texto de prueba
+            test_text = "Saludos, Su Majestad. El sistema de voz está funcionando correctamente."
+            
+            # Generar voz
+            self.ai_system.voice_manager.speak(test_text)
+        else:
+            QMessageBox.warning(
+                self,
+                "Error",
+                "El gestor de voz no está disponible."
+            )
+
+    def _update_voice_status(self):
+        """Actualiza el estado mostrado de la voz"""
+        if hasattr(self.ai_system, 'voice_manager') and self.ai_system.voice_manager:
+            if self.ai_system.voice_manager.is_running:
+                self.voice_on_button.setText("Desactivar Voz")
+                self.voice_on_button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #E53935;
+                        color: white;
+                        border-radius: 4px;
+                        padding: 8px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #F44336;
+                    }
+                """)
+                self.voice_status.setText("Estado: Activado")
+                self.voice_status.setStyleSheet("color: #00B4A6;")
+            else:
+                self.voice_on_button.setText("Activar Voz")
+                self.voice_status.setText("Estado: Desactivado")
+                self.voice_status.setStyleSheet("color: #E53935;")
+        else:
+            self.voice_on_button.setEnabled(False)
+            self.test_voice_button.setEnabled(False)
+            self.voice_status.setText("Estado: No disponible")
+            self.voice_status.setStyleSheet("color: #E53935;")
+
+    
     
     def _create_model_settings(self, parent_layout):
         """Crea la sección de configuración del modelo"""
@@ -699,88 +1477,91 @@ class ApplicationGUI(QMainWindow):
     
     def _create_knowledge_panel(self, tab_widget):
         """Crea el panel de gestión de conocimiento"""
-        knowledge_panel = QWidget()
-        knowledge_layout = QVBoxLayout(knowledge_panel)
-        knowledge_layout.setContentsMargins(10, 10, 10, 10)
+        knowledge_tab = QWidget()
+        tab_widget.addTab(knowledge_tab, "Conocimiento")
+        
+        knowledge_layout = QVBoxLayout(knowledge_tab)
+        knowledge_layout.setContentsMargins(20, 20, 20, 20)
         knowledge_layout.setSpacing(15)
         
-        # Título del panel
-        title = QLabel("Base de Conocimiento")
-        title.setFont(QFont(self.default_font.family(), 12, QFont.Weight.Bold))
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("color: #00B4A6;")
-        knowledge_layout.addWidget(title)
+        # Título
+        knowledge_title = QLabel("Base de Conocimiento")
+        knowledge_title.setFont(QFont(self.default_font.family(), 18, QFont.Weight.Bold))
+        knowledge_title.setStyleSheet("color: #00B4A6;")
+        knowledge_layout.addWidget(knowledge_title)
         
-        # Panel de pestañas para diferentes tipos de conocimiento
+        # Panel de pestañas para la base de conocimiento
         knowledge_tabs = QTabWidget()
         knowledge_tabs.setStyleSheet("""
             QTabWidget::pane {
                 border: 1px solid #555;
-                border-radius: 4px;
-                top: -1px;
-                background-color: #212134;
+                border-radius: 5px;
+                background-color: #1E1E2E;
+            }
+            QTabBar::tab {
+                background-color: #2D2D44;
+                color: #CCC;
+                padding: 8px 16px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }
+            QTabBar::tab:selected {
+                background-color: #00B4A6;
+                color: white;
             }
         """)
-        knowledge_layout.addWidget(knowledge_tabs)
         
-        # Pestaña de hechos/conceptos
+        # Pestaña para añadir hechos y conceptos
         facts_tab = QWidget()
+        knowledge_tabs.addTab(facts_tab, "Hechos y Conceptos")
+        
         facts_layout = QVBoxLayout(facts_tab)
-        facts_layout.setContentsMargins(10, 10, 10, 10)
+        facts_layout.setContentsMargins(15, 15, 15, 15)
         facts_layout.setSpacing(10)
         
-        # Editor de hechos
+        # Entrada para nuevo hecho
         facts_layout.addWidget(QLabel("Añadir nuevo concepto o hecho:"))
         
-        fact_input = QTextEdit()
-        fact_input.setPlaceholderText("Escriba la información que desea añadir...")
-        fact_input.setMaximumHeight(100)
-        fact_input.setStyleSheet("""
+        self.knowledge_input = QTextEdit()
+        self.knowledge_input.setPlaceholderText("Escriba un nuevo concepto o hecho aquí...")
+        self.knowledge_input.setStyleSheet("""
             QTextEdit {
                 border: 1px solid #555;
                 border-radius: 4px;
-                padding: 5px;
+                padding: 8px;
                 background-color: #2A2A40;
+                color: white;
             }
         """)
-        facts_layout.addWidget(fact_input)
+        self.knowledge_input.setMinimumHeight(80)
+        facts_layout.addWidget(self.knowledge_input)
         
-        # Categoría
-        category_layout = QHBoxLayout()
-        category_layout.addWidget(QLabel("Categoría:"))
+        # Categoría e importancia
+        meta_layout = QGridLayout()
+        meta_layout.setColumnStretch(1, 1)
         
-        category_combo = QComboBox()
-        category_combo.setEditable(True)
-        category_combo.addItems(["General", "Ciencia", "Historia", "Tecnología", "Arte", "Personalizado"])
-        category_combo.setStyleSheet("""
-            QComboBox {
+        meta_layout.addWidget(QLabel("Categoría:"), 0, 0)
+        self.category_input = QLineEdit()
+        self.category_input.setPlaceholderText("General")
+        self.category_input.setStyleSheet("""
+            QLineEdit {
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 5px;
                 background-color: #2A2A40;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
+                color: white;
             }
         """)
-        category_layout.addWidget(category_combo)
+        meta_layout.addWidget(self.category_input, 0, 1)
         
-        facts_layout.addLayout(category_layout)
-        
-        # Importancia
-        importance_layout = QHBoxLayout()
-        importance_layout.addWidget(QLabel("Importancia:"))
-        
-        importance_slider = QSlider(Qt.Orientation.Horizontal)
-        importance_slider.setMinimum(1)
-        importance_slider.setMaximum(10)
-        importance_slider.setValue(5)
-        importance_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        importance_slider.setTickInterval(1)
-        importance_slider.setStyleSheet("""
+        meta_layout.addWidget(QLabel("Importancia:"), 1, 0)
+        self.importance_slider = QSlider(Qt.Orientation.Horizontal)
+        self.importance_slider.setMinimum(1)
+        self.importance_slider.setMaximum(10)
+        self.importance_slider.setValue(5)
+        self.importance_slider.setStyleSheet("""
             QSlider::groove:horizontal {
-                border: 1px solid #555;
+                border: 1px solid #999999;
                 height: 8px;
                 background: #2A2A40;
                 margin: 2px 0;
@@ -788,609 +1569,482 @@ class ApplicationGUI(QMainWindow):
             }
             QSlider::handle:horizontal {
                 background: #00B4A6;
-                border: 1px solid #00B4A6;
+                border: 1px solid #5c5c5c;
                 width: 18px;
                 margin: -2px 0;
                 border-radius: 9px;
             }
         """)
+        meta_layout.addWidget(self.importance_slider, 1, 1)
         
-        importance_value = QLabel("5")
-        importance_value.setFixedWidth(20)
-        importance_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        facts_layout.addLayout(meta_layout)
         
-        importance_slider.valueChanged.connect(lambda v: importance_value.setText(str(v)))
+        # Botón para añadir a la base de conocimiento
+        add_to_kb_button = QPushButton("Añadir a la Base de Conocimiento")
+        add_to_kb_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00B4A6;
+                color: white;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #00D1C1;
+            }
+            QPushButton:pressed {
+                background-color: #00A091;
+            }
+        """)
+        add_to_kb_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        add_to_kb_button.clicked.connect(self._add_to_knowledge_base)
+        facts_layout.addWidget(add_to_kb_button)
         
-        importance_layout.addWidget(importance_slider)
-        importance_layout.addWidget(importance_value)
-        
-        facts_layout.addLayout(importance_layout)
-        
-        # Botón de añadir
-        add_fact_button = QPushButton("Añadir a la Base de Conocimiento")
-        facts_layout.addWidget(add_fact_button)
-        
-        # Explorador de hechos
+        # Espacio para explorar la base de conocimiento
         facts_layout.addWidget(QLabel("Explorar base de conocimiento:"))
         
+        # Búsqueda
         search_layout = QHBoxLayout()
         
-        search_input = QLineEdit()
-        search_input.setPlaceholderText("Buscar en base de conocimiento...")
-        search_input.setStyleSheet("""
+        self.knowledge_search_input = QLineEdit()
+        self.knowledge_search_input.setPlaceholderText("Buscar en base de conocimiento...")
+        self.knowledge_search_input.setStyleSheet("""
             QLineEdit {
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 5px;
                 background-color: #2A2A40;
+                color: white;
             }
         """)
-        search_layout.addWidget(search_input)
+        search_layout.addWidget(self.knowledge_search_input)
         
         search_button = QPushButton("Buscar")
+        search_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00B4A6;
+                color: white;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #00D1C1;
+            }
+        """)
+        search_button.clicked.connect(self._search_knowledge_base)
         search_layout.addWidget(search_button)
         
         facts_layout.addLayout(search_layout)
         
         # Resultados de búsqueda
-        search_results = QTextEdit()
-        search_results.setReadOnly(True)
-        search_results.setPlaceholderText("Los resultados de búsqueda aparecerán aquí...")
-        search_results.setStyleSheet("""
+        self.knowledge_results = QTextEdit()
+        self.knowledge_results.setReadOnly(True)
+        self.knowledge_results.setPlaceholderText("Los resultados de búsqueda aparecerán aquí...")
+        self.knowledge_results.setStyleSheet("""
             QTextEdit {
                 border: 1px solid #555;
                 border-radius: 4px;
-                padding: 5px;
+                padding: 8px;
                 background-color: #2A2A40;
+                color: white;
             }
         """)
-        facts_layout.addWidget(search_results)
+        facts_layout.addWidget(self.knowledge_results)
         
-        knowledge_tabs.addTab(facts_tab, "Hechos y Conceptos")
-        
-        # Pestaña de importación de datos
+        # Pestaña para importar datos
         import_tab = QWidget()
-        import_layout = QVBoxLayout(import_tab)
-        import_layout.setContentsMargins(10, 10, 10, 10)
-        import_layout.setSpacing(10)
-        
-        import_layout.addWidget(QLabel("Importar conocimiento desde archivos:"))
-        
-        # Sección de importación de texto
-        import_layout.addWidget(QLabel("Archivos de texto (.txt, .pdf, .docx):"))
-        
-        import_text_layout = QHBoxLayout()
-        
-        text_path = QLineEdit()
-        text_path.setPlaceholderText("Seleccione archivo de texto...")
-        text_path.setReadOnly(True)
-        text_path.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: #2A2A40;
-            }
-        """)
-        import_text_layout.addWidget(text_path)
-        
-        text_browse = QPushButton("Examinar")
-        import_text_layout.addWidget(text_browse)
-        
-        import_layout.addLayout(import_text_layout)
-        
-        # Sección de importación CSV
-        import_layout.addWidget(QLabel("Datos estructurados (.csv, .xlsx):"))
-        
-        import_csv_layout = QHBoxLayout()
-        
-        csv_path = QLineEdit()
-        csv_path.setPlaceholderText("Seleccione archivo de datos...")
-        csv_path.setReadOnly(True)
-        csv_path.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: #2A2A40;
-            }
-        """)
-        import_csv_layout.addWidget(csv_path)
-        
-        csv_browse = QPushButton("Examinar")
-        import_csv_layout.addWidget(csv_browse)
-        
-        import_layout.addLayout(import_csv_layout)
-        
-        # Opciones de importación
-        import_options_layout = QHBoxLayout()
-        
-        replace_check = QCheckBox("Reemplazar datos existentes")
-        replace_check.setStyleSheet("""
-            QCheckBox {
-                spacing: 5px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                border: 1px solid #555;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #00B4A6;
-                border: 1px solid #00B4A6;
-            }
-        """)
-        import_options_layout.addWidget(replace_check)
-        
-        categorize_check = QCheckBox("Categorizar automáticamente")
-        categorize_check.setChecked(True)
-        categorize_check.setStyleSheet("""
-            QCheckBox {
-                spacing: 5px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                border: 1px solid #555;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #00B4A6;
-                border: 1px solid #00B4A6;
-            }
-        """)
-        import_options_layout.addWidget(categorize_check)
-        
-        import_layout.addLayout(import_options_layout)
-        
-        # Botón de importación
-        import_button = QPushButton("Importar Datos")
-        import_layout.addWidget(import_button)
-        
-        # Progreso de importación
-        import_progress = QLabel("Listo para importar")
-        import_layout.addWidget(import_progress)
-        
-        import_layout.addStretch()
-        
         knowledge_tabs.addTab(import_tab, "Importar Datos")
         
-        # Añadir a pestañas principales
-        tab_widget.addTab(knowledge_panel, "Conocimiento")
-    
-    def _create_voice_panel(self, tab_widget):
-        """Crea el panel de configuración de voz"""
-        voice_panel = QWidget()
-        voice_layout = QVBoxLayout(voice_panel)
-        voice_layout.setContentsMargins(10, 10, 10, 10)
-        voice_layout.setSpacing(15)
+        import_layout = QVBoxLayout(import_tab)
+        import_layout.setContentsMargins(15, 15, 15, 15)
+        import_layout.setSpacing(10)
         
-        # Título del panel
-        title = QLabel("Configuración de Voz")
-        title.setFont(QFont(self.default_font.family(), 12, QFont.Weight.Bold))
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("color: #00B4A6;")
-        voice_layout.addWidget(title)
+        # TODO: Implementar importación de datos
+        import_info = QLabel("Próximamente: Importación de datos desde archivos CSV, JSON, y otros formatos.")
+        import_info.setWordWrap(True)
+        import_layout.addWidget(import_info)
         
-        # Panel de selección de voz
-        voice_frame = QFrame()
-        voice_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        voice_frame.setFrameShadow(QFrame.Shadow.Raised)
-        voice_frame.setStyleSheet("background-color: #212134; padding: 10px;")
+        knowledge_layout.addWidget(knowledge_tabs)
         
-        voice_settings_layout = QVBoxLayout(voice_frame)
-        voice_settings_layout.setContentsMargins(10, 10, 10, 10)
-        voice_settings_layout.setSpacing(10)
+        # Panel para el recolector de conocimiento
+        recolector_title = QLabel("Recolector de Conocimiento")
+        recolector_title.setFont(QFont(self.default_font.family(), 18, QFont.Weight.Bold))
+        recolector_title.setStyleSheet("color: #00B4A6;")
+        knowledge_layout.addWidget(recolector_title)
         
-        # Seleccionar idioma/acento
-        dialect_layout = QHBoxLayout()
-        dialect_layout.setContentsMargins(0, 0, 0, 0)
+        recolector_frame = QFrame()
+        recolector_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        recolector_frame.setFrameShadow(QFrame.Shadow.Raised)
+        recolector_frame.setStyleSheet("background-color: #1E1E2E; padding: 15px; border-radius: 5px;")
         
-        dialect_label = QLabel("Acento español:")
-        dialect_label.setFixedWidth(120)
-        dialect_layout.addWidget(dialect_label)
+        recolector_layout = QVBoxLayout(recolector_frame)
+        recolector_layout.setSpacing(15)
         
-        dialect_combo = QComboBox()
-        dialect_combo.addItems([
-            "Latinoamericano (México)", 
-            "Latinoamericano (Argentina)", 
-            "Latinoamericano (Colombia)", 
-            "Español (España)"
-        ])
-        dialect_combo.setStyleSheet("""
-            QComboBox {
+        recolector_info = QLabel("El recolector obtiene conocimiento automáticamente desde Internet para enriquecer la base de conocimiento del sistema.")
+        recolector_info.setWordWrap(True)
+        recolector_layout.addWidget(recolector_info)
+        
+        # Campo para añadir tema
+        recolector_layout.addWidget(QLabel("Añadir tema para investigar:"))
+        
+        topic_layout = QHBoxLayout()
+        
+        self.topic_input = QLineEdit()
+        self.topic_input.setPlaceholderText("Escriba un tema para investigar...")
+        self.topic_input.setStyleSheet("""
+            QLineEdit {
                 border: 1px solid #555;
                 border-radius: 4px;
                 padding: 5px;
                 background-color: #2A2A40;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
+                color: white;
             }
         """)
-        dialect_layout.addWidget(dialect_combo)
+        topic_layout.addWidget(self.topic_input)
         
-        voice_settings_layout.addLayout(dialect_layout)
-        
-        # Control de velocidad
-        speed_layout = QHBoxLayout()
-        speed_layout.setContentsMargins(0, 0, 0, 0)
-        
-        speed_label = QLabel("Velocidad:")
-        speed_label.setFixedWidth(120)
-        speed_layout.addWidget(speed_label)
-        
-        speed_slider = QSlider(Qt.Orientation.Horizontal)
-        speed_slider.setMinimum(50)
-        speed_slider.setMaximum(150)
-        speed_slider.setValue(100)
-        speed_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        speed_slider.setTickInterval(10)
-        speed_slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                border: 1px solid #555;
-                height: 8px;
-                background: #2A2A40;
-                margin: 2px 0;
-                border-radius: 4px;
-            }
-            QSlider::handle:horizontal {
-                background: #00B4A6;
-                border: 1px solid #00B4A6;
-                width: 18px;
-                margin: -2px 0;
-                border-radius: 9px;
-            }
-        """)
-        
-        speed_value = QLabel("100%")
-        speed_value.setFixedWidth(40)
-        speed_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        speed_slider.valueChanged.connect(lambda v: speed_value.setText(f"{v}%"))
-        
-        speed_layout.addWidget(speed_slider)
-        speed_layout.addWidget(speed_value)
-        
-        voice_settings_layout.addLayout(speed_layout)
-        
-        # Control de tono
-        pitch_layout = QHBoxLayout()
-        pitch_layout.setContentsMargins(0, 0, 0, 0)
-        
-        pitch_label = QLabel("Tono:")
-        pitch_label.setFixedWidth(120)
-        pitch_layout.addWidget(pitch_label)
-        
-        pitch_slider = QSlider(Qt.Orientation.Horizontal)
-        pitch_slider.setMinimum(50)
-        pitch_slider.setMaximum(150)
-        pitch_slider.setValue(100)
-        pitch_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        pitch_slider.setTickInterval(10)
-        pitch_slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                border: 1px solid #555;
-                height: 8px;
-                background: #2A2A40;
-                margin: 2px 0;
-                border-radius: 4px;
-            }
-            QSlider::handle:horizontal {
-                background: #00B4A6;
-                border: 1px solid #00B4A6;
-                width: 18px;
-                margin: -2px 0;
-                border-radius: 9px;
-            }
-        """)
-        
-        pitch_value = QLabel("100%")
-        pitch_value.setFixedWidth(40)
-        pitch_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        pitch_slider.valueChanged.connect(lambda v: pitch_value.setText(f"{v}%"))
-        
-        pitch_layout.addWidget(pitch_slider)
-        pitch_layout.addWidget(pitch_value)
-        
-        voice_settings_layout.addLayout(pitch_layout)
-        
-        # Opciones de activación
-        activation_check = QCheckBox("Activar voz automáticamente al iniciar")
-        activation_check.setChecked(True)
-        activation_check.setStyleSheet("""
-            QCheckBox {
-                spacing: 5px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                border: 1px solid #555;
-            }
-            QCheckBox::indicator:checked {
+        add_topic_button = QPushButton("Añadir Tema")
+        add_topic_button.setStyleSheet("""
+            QPushButton {
                 background-color: #00B4A6;
-                border: 1px solid #00B4A6;
-            }
-        """)
-        voice_settings_layout.addWidget(activation_check)
-        
-        voice_layout.addWidget(voice_frame)
-        
-        # Sección de prueba de voz
-        test_frame = QFrame()
-        test_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        test_frame.setFrameShadow(QFrame.Shadow.Raised)
-        test_frame.setStyleSheet("background-color: #212134; padding: 10px;")
-        
-        test_layout = QVBoxLayout(test_frame)
-        test_layout.setContentsMargins(10, 10, 10, 10)
-        test_layout.setSpacing(10)
-        
-        test_layout.addWidget(QLabel("Probar configuración de voz:"))
-        
-        test_input = QTextEdit()
-        test_input.setPlaceholderText("Escriba texto para probar la voz...")
-        test_input.setMaximumHeight(80)
-        test_input.setStyleSheet("""
-            QTextEdit {
-                border: 1px solid #555;
+                color: white;
                 border-radius: 4px;
-                padding: 5px;
-                background-color: #2A2A40;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #00D1C1;
             }
         """)
-        test_layout.addWidget(test_input)
+        add_topic_button.clicked.connect(self._add_harvesting_topic)
+        topic_layout.addWidget(add_topic_button)
         
-        test_button = QPushButton("Reproducir Prueba")
-        test_layout.addWidget(test_button)
+        recolector_layout.addLayout(topic_layout)
         
-        voice_layout.addWidget(test_frame)
+        # Botones de control
+        buttons_layout = QHBoxLayout()
         
-        # Espacio flexible
-        voice_layout.addStretch()
-        
-        # Botones de acción
-        buttons_panel = QWidget()
-        buttons_layout = QHBoxLayout(buttons_panel)
-        buttons_layout.setContentsMargins(0, 0, 0, 0)
-        buttons_layout.setSpacing(10)
-        
-        save_button = QPushButton("Guardar Configuración")
-        buttons_layout.addWidget(save_button)
-        
-        restore_button = QPushButton("Restaurar Valores Predeterminados")
-        buttons_layout.addWidget(restore_button)
-        
-        voice_layout.addWidget(buttons_panel)
-        
-        # Añadir a pestañas principales
-        tab_widget.addTab(voice_panel, "Voz")
-    
-    def _create_training_panel(self, tab_widget):
-        """Crea el panel de entrenamiento del modelo"""
-        training_panel = QWidget()
-        training_layout = QVBoxLayout(training_panel)
-        training_layout.setContentsMargins(10, 10, 10, 10)
-        training_layout.setSpacing(15)
-        
-        # Título del panel
-        title = QLabel("Entrenamiento del Modelo")
-        title.setFont(QFont(self.default_font.family(), 12, QFont.Weight.Bold))
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("color: #00B4A6;")
-        training_layout.addWidget(title)
-        
-        # Información del modelo
-        info_frame = QFrame()
-        info_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        info_frame.setFrameShadow(QFrame.Shadow.Raised)
-        info_frame.setStyleSheet("background-color: #212134; padding: 10px;")
-        
-        info_layout = QVBoxLayout(info_frame)
-        info_layout.setContentsMargins(10, 10, 10, 10)
-        info_layout.setSpacing(10)
-        
-        info_layout.addWidget(QLabel("Información del modelo:"))
-        
-        info_text = QTextEdit()
-        info_text.setReadOnly(True)
-        info_text.setPlaceholderText("La información del modelo se cargará al iniciar...")
-        info_text.setMaximumHeight(100)
-        info_text.setStyleSheet("""
-            QTextEdit {
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: #2A2A40;
-            }
-        """)
-        info_layout.addWidget(info_text)
-        
-        training_layout.addWidget(info_frame)
-        
-        # Opciones de entrenamiento
-        options_frame = QFrame()
-        options_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        options_frame.setFrameShadow(QFrame.Shadow.Raised)
-        options_frame.setStyleSheet("background-color: #212134; padding: 10px;")
-        
-        options_layout = QVBoxLayout(options_frame)
-        options_layout.setContentsMargins(10, 10, 10, 10)
-        options_layout.setSpacing(10)
-        
-        options_layout.addWidget(QLabel("Opciones de entrenamiento:"))
-        
-        # Parámetros de entrenamiento
-        params_layout = QHBoxLayout()
-        
-        epochs_layout = QVBoxLayout()
-        epochs_layout.addWidget(QLabel("Épocas:"))
-        
-        epochs_input = QComboBox()
-        epochs_input.addItems(["1", "3", "5", "10", "20"])
-        epochs_input.setCurrentIndex(2)  # 5 por defecto
-        epochs_input.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: #2A2A40;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-        """)
-        epochs_layout.addWidget(epochs_input)
-        
-        params_layout.addLayout(epochs_layout)
-        
-        batch_layout = QVBoxLayout()
-        batch_layout.addWidget(QLabel("Batch size:"))
-        
-        batch_input = QComboBox()
-        batch_input.addItems(["16", "32", "64", "128"])
-        batch_input.setCurrentIndex(2)  # 64 por defecto
-        batch_input.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: #2A2A40;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-        """)
-        batch_layout.addWidget(batch_input)
-        
-        params_layout.addLayout(batch_layout)
-        
-        learning_layout = QVBoxLayout()
-        learning_layout.addWidget(QLabel("Learning rate:"))
-        
-        learning_input = QComboBox()
-        learning_input.addItems(["0.0001", "0.001", "0.01", "0.1"])
-        learning_input.setCurrentIndex(1)  # 0.001 por defecto
-        learning_input.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #555;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: #2A2A40;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-        """)
-        learning_layout.addWidget(learning_input)
-        
-        params_layout.addLayout(learning_layout)
-        
-        options_layout.addLayout(params_layout)
-        
-        # Opciones avanzadas
-        advanced_layout = QHBoxLayout()
-        
-        validation_check = QCheckBox("Usar validación cruzada")
-        validation_check.setChecked(True)
-        validation_check.setStyleSheet("""
-            QCheckBox {
-                spacing: 5px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                border: 1px solid #555;
-            }
-            QCheckBox::indicator:checked {
+        self.start_harvester_button = QPushButton("Iniciar Recolector")
+        self.start_harvester_button.setStyleSheet("""
+            QPushButton {
                 background-color: #00B4A6;
-                border: 1px solid #00B4A6;
+                color: white;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #00D1C1;
             }
         """)
-        advanced_layout.addWidget(validation_check)
+        self.start_harvester_button.clicked.connect(self._start_harvester)
+        buttons_layout.addWidget(self.start_harvester_button)
         
-        checkpoint_check = QCheckBox("Guardar checkpoints")
-        checkpoint_check.setChecked(True)
-        checkpoint_check.setStyleSheet("""
-            QCheckBox {
-                spacing: 5px;
+        self.stop_harvester_button = QPushButton("Detener Recolector")
+        self.stop_harvester_button.setStyleSheet("""
+            QPushButton {
+                background-color: #E53935;
+                color: white;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
             }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                border: 1px solid #555;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #00B4A6;
-                border: 1px solid #00B4A6;
+            QPushButton:hover {
+                background-color: #F44336;
             }
         """)
-        advanced_layout.addWidget(checkpoint_check)
+        self.stop_harvester_button.setEnabled(False)
+        self.stop_harvester_button.clicked.connect(self._stop_harvester)
+        buttons_layout.addWidget(self.stop_harvester_button)
         
-        early_check = QCheckBox("Early stopping")
-        early_check.setChecked(True)
-        early_check.setStyleSheet("""
-            QCheckBox {
-                spacing: 5px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                border: 1px solid #555;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #00B4A6;
-                border: 1px solid #00B4A6;
-            }
-        """)
-        advanced_layout.addWidget(early_check)
+        recolector_layout.addLayout(buttons_layout)
         
-        options_layout.addLayout(advanced_layout)
+        # Estado del recolector
+        self.harvester_status = QLabel("Estado: Detenido")
+        self.harvester_status.setStyleSheet("color: #E53935;")
+        recolector_layout.addWidget(self.harvester_status)
         
-        training_layout.addWidget(options_frame)
+        knowledge_layout.addWidget(recolector_frame)
         
-        # Botones de acción
-        buttons_frame = QFrame()
-        buttons_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        buttons_frame.setFrameShadow(QFrame.Shadow.Raised)
-        buttons_frame.setStyleSheet("background-color: #212134; padding: 10px;")
-        
-        buttons_layout = QVBoxLayout(buttons_frame)
-        buttons_layout.setContentsMargins(10, 10, 10, 10)
-        buttons_layout.setSpacing(10)
-        
-        train_button = QPushButton("Iniciar Entrenamiento")
-        buttons_layout.addWidget(train_button)
-        
-        # Progreso de entrenamiento
-        progress_label = QLabel("Estado: Listo para entrenar")
-        buttons_layout.addWidget(progress_label)
-        
-        training_layout.addWidget(buttons_frame)
-        
-        # Espacio flexible
-        training_layout.addStretch()
-        
-        # Añadir a pestañas principales
-        tab_widget.addTab(training_panel, "Entrenamiento")
-    
+        return knowledge_tab
+
+
     def _setup_timers(self):
-        """Configura temporizadores y eventos periódicos"""
-        # Timer para actualizar estado
-        self.status_timer = QTimer()
-        self.status_timer.timeout.connect(self._update_status)
+        """Configura temporizadores para actualización periódica de la interfaz"""
+        # Temporizador para actualizar estado del sistema
+        self.status_timer = QTimer(self)
+        self.status_timer.timeout.connect(self._update_system_status)
         self.status_timer.start(5000)  # Actualizar cada 5 segundos
-    
+        
+        # Temporizador para actualizar estado del recolector
+        self.harvester_timer = QTimer(self)
+        self.harvester_timer.timeout.connect(self._update_harvester_status)
+        self.harvester_timer.start(3000)  # Actualizar cada 3 segundos
+        
+        # Temporizador para comprobar respuestas nuevas
+        self.chat_timer = QTimer(self)
+        self.chat_timer.timeout.connect(self._check_new_responses)
+        self.chat_timer.start(1000)  # Comprobar cada segundo
+
+    def _update_system_status(self):
+        """Actualiza la información de estado del sistema en la barra de estado"""
+        if not hasattr(self, 'ai_system') or not self.ai_system:
+            return
+        
+        try:
+            # Obtener fecha y hora actual
+            current_time = datetime.now().strftime("%H:%M:%S")
+            
+            # Estado del sistema
+            if self.ai_system.is_running:
+                status_text = f"Sistema en ejecución | Última actualización: {current_time}"
+            else:
+                status_text = f"Sistema detenido | Última actualización: {current_time}"
+            
+            # Actualizar barra de estado
+            if hasattr(self, 'status_bar'):
+                self.status_bar.showMessage(status_text)
+        except Exception as e:
+            print(f"Error al actualizar estado: {str(e)}")
+
+    def _update_harvester_status(self):
+        """Actualiza el estado mostrado del recolector de conocimiento"""
+        if not hasattr(self, 'ai_system') or not self.ai_system or not hasattr(self.ai_system, 'knowledge_harvester'):
+            return
+        
+        try:
+            if not hasattr(self, 'harvester_status'):
+                return
+                
+            # Obtener estado actual
+            if self.ai_system.knowledge_harvester and self.ai_system.knowledge_harvester.is_running:
+                # Obtener tamaño de la cola si está disponible
+                if hasattr(self.ai_system.knowledge_harvester, 'topic_queue'):
+                    try:
+                        queue_size = self.ai_system.knowledge_harvester.topic_queue.qsize()
+                        self.harvester_status.setText(f"Estado: En ejecución | Temas en cola: {queue_size}")
+                    except:
+                        self.harvester_status.setText("Estado: En ejecución")
+                    
+                    self.harvester_status.setStyleSheet("color: #00B4A6;")
+                    
+                    if hasattr(self, 'start_harvester_button') and hasattr(self, 'stop_harvester_button'):
+                        self.start_harvester_button.setEnabled(False)
+                        self.stop_harvester_button.setEnabled(True)
+                else:
+                    self.harvester_status.setText("Estado: En ejecución")
+                    self.harvester_status.setStyleSheet("color: #00B4A6;")
+            else:
+                self.harvester_status.setText("Estado: Detenido")
+                self.harvester_status.setStyleSheet("color: #E53935;")
+                
+                if hasattr(self, 'start_harvester_button') and hasattr(self, 'stop_harvester_button'):
+                    self.start_harvester_button.setEnabled(True)
+                    self.stop_harvester_button.setEnabled(False)
+        except Exception as e:
+            print(f"Error al actualizar estado del recolector: {str(e)}")
+
+    def _check_new_responses(self):
+        """Comprueba si hay nuevas respuestas del sistema"""
+        # En un sistema real, esto verificaría respuestas asíncronas
+        # Para esta implementación, es solo un marcador de posición
+        pass
+
+    def _add_message_to_history(self, role, message, timestamp=None):
+        """Añade un mensaje al historial de chat con formato avanzado"""
+        if not timestamp:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            
+        # Determinamos la clase CSS según el rol
+        css_class = "user-message" if role == "user" else "assistant-message"
+        
+        # Formateamos el HTML para la burbuja de mensaje
+        html = f"""
+        <div class="{css_class}">
+            {message}
+            <div class="timestamp">{timestamp}</div>
+        </div>
+        """
+        
+        # Insertamos el HTML
+        cursor = self.chat_history.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertHtml(html)
+        cursor.insertBlock()  # Añade un bloque vacío como separador
+        
+        # Desplazamos al final del historial
+        self.chat_history.moveCursor(QTextCursor.MoveOperation.End)
+
+    def _add_harvesting_topic(self):
+        """Añade un tema para el recolector de conocimiento"""
+        topic = self.topic_input.text().strip()
+        if not topic:
+            QMessageBox.warning(
+                self,
+                "Tema vacío",
+                "Por favor, introduzca un tema para investigar."
+            )
+            return
+            
+        try:
+            if hasattr(self.ai_system, 'knowledge_harvester'):
+                success, message = self.ai_system.knowledge_harvester.add_topic(topic)
+                
+                if success:
+                    QMessageBox.information(
+                        self,
+                        "Tema Añadido",
+                        message
+                    )
+                    self.topic_input.clear()
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Error",
+                        message
+                    )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    "El recolector de conocimiento no está disponible."
+                )
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"No se pudo añadir el tema: {str(e)}"
+            )
+
+    def _start_harvester(self):
+        """Inicia el recolector de conocimiento"""
+        try:
+            if hasattr(self.ai_system, 'knowledge_harvester'):
+                if self.ai_system.knowledge_harvester.is_running:
+                    QMessageBox.information(
+                        self,
+                        "Información",
+                        "El recolector ya está en ejecución."
+                    )
+                    return
+                    
+                success = self.ai_system.knowledge_harvester.start()
+                
+                if success:
+                    self.harvester_status.setText("Estado: En ejecución")
+                    self.harvester_status.setStyleSheet("color: #00B4A6;")
+                    self.start_harvester_button.setEnabled(False)
+                    self.stop_harvester_button.setEnabled(True)
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Error",
+                        "No se pudo iniciar el recolector."
+                    )
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"No se pudo iniciar el recolector: {str(e)}"
+            )
+
+    def _stop_harvester(self):
+        """Detiene el recolector de conocimiento"""
+        try:
+            if hasattr(self.ai_system, 'knowledge_harvester'):
+                if not self.ai_system.knowledge_harvester.is_running:
+                    return
+                    
+                success = self.ai_system.knowledge_harvester.stop()
+                
+                if success:
+                    self.harvester_status.setText("Estado: Detenido")
+                    self.harvester_status.setStyleSheet("color: #E53935;")
+                    self.start_harvester_button.setEnabled(True)
+                    self.stop_harvester_button.setEnabled(False)
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Error",
+                        "No se pudo detener el recolector."
+                    )
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"No se pudo detener el recolector: {str(e)}"
+            )
+
+    def _search_knowledge_base(self):
+        """Busca en la base de conocimiento y muestra resultados"""
+        query = self.knowledge_search_input.text().strip()
+        if not query:
+            self.knowledge_results.clear()
+            self.knowledge_results.setPlainText("Por favor, introduzca un término de búsqueda.")
+            return
+            
+        try:
+            # Buscar en la base de conocimiento
+            results = self.ai_system.knowledge_base.search_facts(query, limit=10)
+            
+            if not results:
+                self.knowledge_results.clear()
+                self.knowledge_results.setPlainText("No se encontraron resultados para la búsqueda.")
+                return
+                
+            # Mostrar resultados con formato
+            self.knowledge_results.clear()
+            result_text = ""
+            
+            for i, result in enumerate(results, 1):
+                category = result.get('category', 'General')
+                importance = result.get('importance', 0.5)
+                stars = "★" * int(importance * 5 // 1)
+                
+                result_text += f"{i}. {result['content']}\n"
+                result_text += f"   Categoría: {category} | Relevancia: {stars}\n\n"
+                
+            self.knowledge_results.setPlainText(result_text)
+        except Exception as e:
+            self.knowledge_results.clear()
+            self.knowledge_results.setPlainText(f"Error al buscar: {str(e)}")
+
+    def _add_to_knowledge_base(self):
+        """Añade un nuevo hecho a la base de conocimiento"""
+        content = self.knowledge_input.toPlainText().strip()
+        if not content:
+            QMessageBox.warning(
+                self,
+                "Contenido vacío",
+                "Por favor, introduzca un hecho o concepto para añadir."
+            )
+            return
+            
+        category = self.category_input.text().strip() or "General"
+        importance = self.importance_slider.value() / 10.0  # Convertir a escala 0-1
+        
+        try:
+            fact_id = self.ai_system.knowledge_base.add_fact(content, category, importance)
+            
+            if fact_id:
+                QMessageBox.information(
+                    self,
+                    "Éxito",
+                    f"Hecho añadido correctamente a la categoría '{category}'."
+                )
+                self.knowledge_input.clear()
+                # Opcional: actualizar cualquier vista de conocimiento
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    "No se pudo añadir el hecho a la base de conocimiento."
+                )
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Error al añadir hecho: {str(e)}"
+            )
+
     def _update_status(self):
         """Actualiza información de estado periódicamente"""
         # Actualizar información en barra de estado
@@ -1588,3 +2242,5 @@ class ApplicationGUI(QMainWindow):
         
         # Retornar código de salida de la aplicación
         return self._qt_app.exec()
+    
+

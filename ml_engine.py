@@ -15,12 +15,12 @@ import numpy as np
 import pickle
 from datetime import datetime
 import tensorflow as tf
-from tensorflow.keras.models import Sequential, load_model, Model
-from tensorflow.keras.layers import Dense, LSTM, Embedding, Input, Dropout, Bidirectional
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow import Sequential, load_model, Model
+from tensorflow import Dense, LSTM, Embedding, Input, Dropout, Bidirectional
+from tensorflow import Adam
+from tensorflow import ModelCheckpoint, EarlyStopping
+from tensorflow import Tokenizer
+from tensorflow import pad_sequences
 
 class MLEngine:
     """Motor de aprendizaje automático y generación de respuestas"""
@@ -390,13 +390,41 @@ class MLEngine:
         """Genera una respuesta basada en el texto de entrada y el contexto de la conversación"""
         if conversation_history is None:
             conversation_history = []
-            
-        if not input_text or not isinstance(input_text, str):
-            return "Lo siento, Su Majestad, no he recibido una consulta válida."
-            
-        # Si el input_text es un diccionario (resultado del text_processor), extraer el texto original
+                
+        # Normalizar el input_text a string
         if isinstance(input_text, dict) and 'original' in input_text:
-            input_text = input_text['original']
+            original_text = input_text['original'].lower()
+            input_text_for_kb = input_text['original']
+        else:
+            original_text = str(input_text).lower()
+            input_text_for_kb = str(input_text)
+        
+        # Detectar saludos básicos
+        if original_text in ["hola", "saludos", "buenos días", "buenas tardes", "buenas noches"]:
+            return f"Saludos, Su Majestad. ¿En qué puedo servirle hoy?"
+        
+        # Buscar respuesta en la base de conocimiento
+        try:
+            # Buscar hechos relevantes
+            facts = self.knowledge_base.search_facts(input_text_for_kb, limit=3)
+            
+            if facts:
+                # Construir respuesta basada en hechos encontrados
+                response = "Su Majestad, basado en mi conocimiento: "
+                
+                # Añadir hechos
+                for i, fact in enumerate(facts):
+                    if i > 0:
+                        response += " Además, "
+                    response += fact['content']
+                
+                # Añadir fuente
+                if len(facts) > 0 and 'category' in facts[0] and facts[0]['category']:
+                    response += f" Esta información está relacionada con {facts[0]['category']}."
+                
+                return response
+        except Exception as e:
+            self.logger.warning(f"Error al buscar en la base de conocimiento: {str(e)}")
         
         with self.response_lock:
             try:
@@ -404,26 +432,26 @@ class MLEngine:
                 if self.model is None or self.tokenizer is None or not self.tokenizer.word_index:
                     self.logger.info("Modelo no disponible, utilizando respuesta predeterminada")
                     try:
-                        return self.knowledge_base.get_predefined_response(input_text)
+                        return self.knowledge_base.get_predefined_response(input_text_for_kb)
                     except Exception as e:
                         self.logger.error(f"Error al obtener respuesta predeterminada: {str(e)}")
                         return "A sus órdenes, Su Majestad. ¿Cómo puedo servirle hoy?"
                 
                 # Preprocesar la entrada
                 try:
-                    input_seq = self.tokenizer.texts_to_sequences([input_text])[0]
+                    input_seq = self.tokenizer.texts_to_sequences([input_text_for_kb])[0]
                     
                     # Si la secuencia está vacía, usar respuesta predeterminada
                     if not input_seq:
                         self.logger.warning("No se pudo tokenizar la entrada, utilizando respuesta predeterminada")
-                        return self.knowledge_base.get_predefined_response(input_text)
+                        return self.knowledge_base.get_predefined_response(input_text_for_kb)
                         
                     input_seq = pad_sequences([input_seq], maxlen=self.max_sequence_length, padding='pre')
                 except Exception as e:
                     self.logger.error(f"Error al preprocesar entrada: {str(e)}")
-                    return self.knowledge_base.get_predefined_response(input_text)
+                    return self.knowledge_base.get_predefined_response(input_text_for_kb)
                 
-                # Extraer contexto de la conversación reciente (últimas 5 interacciones)
+                # Extraer contexto de la conversación reciente (últimas 10 interacciones)
                 context = []
                 for entry in conversation_history[-10:]:
                     if isinstance(entry, dict) and 'role' in entry and 'content' in entry:
@@ -477,7 +505,7 @@ class MLEngine:
                         input_seq = np.append(input_seq[0][1:], predicted_token).reshape(1, self.max_sequence_length)
                 except Exception as e:
                     self.logger.error(f"Error al generar predicciones: {str(e)}")
-                    return self.knowledge_base.get_predefined_response(input_text)
+                    return self.knowledge_base.get_predefined_response(input_text_for_kb)
                 
                 # Convertir tokens a texto
                 response_words = []
@@ -499,17 +527,16 @@ class MLEngine:
                 # Si la respuesta generada no es coherente, usar la base de conocimiento
                 if len(response.split()) < 3 or not response:
                     self.logger.info("Respuesta generada demasiado corta o vacía, utilizando base de conocimiento")
-                    return self.knowledge_base.get_predefined_response(input_text)
+                    return self.knowledge_base.get_predefined_response(input_text_for_kb)
                 
                 # Mejorar formato de la respuesta (primera letra mayúscula, signos de puntuación, etc.)
                 response = self._format_response(response)
                 
                 return response
-                
+                    
             except Exception as e:
                 self.logger.error(f"Error al generar respuesta: {str(e)}")
                 return "Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento."
-    
     def _format_response(self, text):
         """Mejora el formato del texto generado"""
         if not text:

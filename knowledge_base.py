@@ -1,526 +1,253 @@
 """
-Base de Conocimiento - Repositorio Central de Información
+Base de Conocimiento - Sistema de Almacenamiento y Recuperación
 Desarrollado para Su Majestad
-
-Este módulo implementa la base de conocimiento que almacena, gestiona
-y proporciona acceso a la información utilizada por el sistema de IA.
 """
 
 import os
-import json
-import logging
-import random
-import re
 import sqlite3
-import time
+import logging
+import uuid
+import json
+import re
 from datetime import datetime
-from collections import defaultdict
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 class KnowledgeBase:
-    """Gestor de la base de conocimiento del sistema"""
+    """Base de conocimiento para almacenar y recuperar información"""
     
-    def __init__(self, knowledge_path):
-        """Inicializa la base de conocimiento"""
+    def __init__(self, db_file):
+        """Inicializa la base de conocimiento con la ruta a la base de datos"""
         self.logger = logging.getLogger("KnowledgeBase")
         self.logger.info("Inicializando base de conocimiento...")
         
-        self.knowledge_path = knowledge_path
+        self.db_file = db_file
         
-        # Crear directorios si no existen
-        if not os.path.exists(knowledge_path):
-            os.makedirs(knowledge_path)
-            
-        # Inicializar base de datos SQLite
-        self.db_path = os.path.join(knowledge_path, "knowledge.db")
-        self._initialize_database()
+        # Crear directorio si no existe
+        db_dir = os.path.dirname(db_file)
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir)
         
-        # Inicializar vectorizador para búsqueda semántica
-        self.vectorizer = TfidfVectorizer(
-            lowercase=True,
-            strip_accents='unicode',
-            ngram_range=(1, 2),
-            max_df=0.85,
-            min_df=2,
-            max_features=10000
-        )
+        # Inicializar base de datos
+        self._init_database()
         
         # Cargar respuestas predefinidas
         self.predefined_responses = self._load_predefined_responses()
         
-        # Caché para vectorizaciones frecuentes
-        self.vector_cache = {}
-        
         self.logger.info("Base de conocimiento inicializada correctamente")
     
-    def _initialize_database(self):
-        """Crea o verifica la estructura de la base de datos"""
+    def _init_database(self):
+        """Inicializa la estructura de la base de datos"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            # Conectar a la base de datos (la crea si no existe)
+            conn = sqlite3.connect(self.db_file)
             cursor = conn.cursor()
             
-            # Tabla para hechos/conceptos
+            # Crear tabla de hechos si no existe
             cursor.execute('''
-            CREATE TABLE IF NOT EXISTS facts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                content TEXT NOT NULL,
-                category TEXT,
-                importance REAL DEFAULT 1.0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_accessed TIMESTAMP,
-                access_count INTEGER DEFAULT 0
-            )
+                CREATE TABLE IF NOT EXISTS facts (
+                    id TEXT PRIMARY KEY,
+                    content TEXT NOT NULL,
+                    category TEXT,
+                    importance REAL DEFAULT 0.5,
+                    timestamp TEXT
+                )
             ''')
             
-            # Tabla para conversaciones
+            # Crear tabla de etiquetas si no existe
             cursor.execute('''
-            CREATE TABLE IF NOT EXISTS conversations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_input TEXT NOT NULL,
-                system_response TEXT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                feedback INTEGER DEFAULT 0
-            )
+                CREATE TABLE IF NOT EXISTS tags (
+                    fact_id TEXT,
+                    tag TEXT,
+                    FOREIGN KEY (fact_id) REFERENCES facts(id)
+                )
             ''')
             
-            # Tabla para características lingüísticas del usuario
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS user_linguistics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                feature_type TEXT NOT NULL,
-                feature_value TEXT NOT NULL,
-                frequency INTEGER DEFAULT 1,
-                last_observed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            ''')
-            
-            # Tabla para vectores semánticos
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS semantic_vectors (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                content_id INTEGER,
-                content_type TEXT NOT NULL,
-                vector BLOB NOT NULL,
-                FOREIGN KEY (content_id) REFERENCES facts(id) ON DELETE CASCADE
-            )
-            ''')
-            
-            # Índices para mejorar rendimiento
+            # Crear índices para búsqueda rápida
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_facts_category ON facts(category)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag)')
             
             conn.commit()
             conn.close()
             
             self.logger.info("Base de datos inicializada correctamente")
+            return True
+            
         except Exception as e:
             self.logger.error(f"Error al inicializar base de datos: {str(e)}")
+            return False
     
     def _load_predefined_responses(self):
         """Carga respuestas predefinidas desde archivo JSON"""
-        responses_file = os.path.join(self.knowledge_path, "predefined_responses.json")
+        responses = {
+            "greeting": "Saludos, Su Majestad. ¿En qué puedo servirle hoy?",
+            "farewell": "Ha sido un honor servirle, Su Majestad. Aquí estaré cuando me necesite.",
+            "unknown": "Lamento no entender completamente su petición, Su Majestad. ¿Podría reformularla?",
+            "thinking": "Procesando su solicitud, Su Majestad...",
+            "error": "Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento."
+        }
         
-        # Crear archivo de respuestas predefinidas si no existe
-        if not os.path.exists(responses_file):
-            default_responses = {
-                "greeting": [
-                    "Saludos, Su Majestad. ¿En qué puedo servirle hoy?",
-                    "A sus órdenes, Mi Rey. ¿Cómo puedo asistirle?",
-                    "Es un honor atenderle, Su Majestad. Estoy a su disposición."
-                ],
-                "farewell": [
-                    "Ha sido un honor servirle, Su Majestad. Estaré aquí cuando me necesite.",
-                    "Que tenga un excelente día, Mi Rey. Quedo a su disposición.",
-                    "Me retiro a su orden, Su Majestad. Regresaré cuando lo solicite."
-                ],
-                "unknown": [
-                    "Lamento no comprender completamente su solicitud, Su Majestad. ¿Podría reformularla?",
-                    "Mi Rey, me temo que necesito más información para procesar adecuadamente su petición.",
-                    "Su Majestad, permítame solicitar una aclaración para poder servirle mejor."
-                ],
-                "acknowledgment": [
-                    "Entendido, Su Majestad.",
-                    "A sus órdenes, Mi Rey.",
-                    "Comprendido perfectamente, Su Alteza."
-                ]
-            }
-            
-            with open(responses_file, 'w', encoding='utf-8') as f:
-                json.dump(default_responses, f, ensure_ascii=False, indent=2)
-            
-            return default_responses
-        
-        # Cargar respuestas existentes
+        # Intentar cargar desde archivo si existe
         try:
-            with open(responses_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            responses_file = os.path.join(os.path.dirname(self.db_file), "responses.json")
+            
+            if os.path.exists(responses_file):
+                with open(responses_file, 'r', encoding='utf-8') as f:
+                    loaded_responses = json.load(f)
+                    
+                    # Actualizar respuestas con las cargadas
+                    responses.update(loaded_responses)
         except Exception as e:
-            self.logger.error(f"Error al cargar respuestas predefinidas: {str(e)}")
-            return {}
+            self.logger.warning(f"Error al cargar respuestas predefinidas: {str(e)}")
+        
+        return responses
     
-    def get_predefined_response(self, input_text):
-        """Obtiene una respuesta predefinida basada en la entrada del usuario"""
-        input_lower = input_text.lower()
+    def add_fact(self, content, category=None, importance=0.5, tags=None):
+        """
+        Añade un nuevo hecho a la base de conocimiento
         
-        # Detectar saludos
-        greeting_patterns = ["hola", "buenos días", "buenas tardes", "buenas noches", "saludos"]
-        for pattern in greeting_patterns:
-            if pattern in input_lower:
-                if "greeting" in self.predefined_responses:
-                    return random.choice(self.predefined_responses["greeting"])
+        Args:
+            content (str): Contenido del hecho
+            category (str, optional): Categoría del hecho
+            importance (float, optional): Importancia del hecho (0-1)
+            tags (list, optional): Lista de etiquetas
+            
+        Returns:
+            str: ID del hecho añadido o None si hay error
+        """
+        if not content or not isinstance(content, str):
+            return None
         
-        # Detectar despedidas
-        farewell_patterns = ["adiós", "hasta luego", "chao", "nos vemos", "hasta pronto"]
-        for pattern in farewell_patterns:
-            if pattern in input_lower:
-                if "farewell" in self.predefined_responses:
-                    return random.choice(self.predefined_responses["farewell"])
-        
-        # Buscar respuesta basada en similitud semántica
-        response = self._get_semantic_response(input_text)
-        if response:
-            return response
-        
-        # Si no hay coincidencia, devolver respuesta para desconocido
-        if "unknown" in self.predefined_responses:
-            return random.choice(self.predefined_responses["unknown"])
-        
-        return "No comprendo completamente su solicitud, Su Majestad. ¿Podría proporcionarme más detalles?"
-    
-    def _get_semantic_response(self, input_text):
-        """Busca una respuesta basada en similitud semántica con conversaciones anteriores"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            # Generar ID único
+            fact_id = str(uuid.uuid4())
+            
+            # Preparar datos
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Insertar en base de datos
+            conn = sqlite3.connect(self.db_file)
             cursor = conn.cursor()
             
-            # Obtener últimas conversaciones
-            cursor.execute('''
-            SELECT user_input, system_response FROM conversations
-            ORDER BY timestamp DESC LIMIT 100
-            ''')
+            cursor.execute(
+                'INSERT INTO facts (id, content, category, importance, timestamp) VALUES (?, ?, ?, ?, ?)',
+                (fact_id, content, category, importance, timestamp)
+            )
             
-            conversations = cursor.fetchall()
-            conn.close()
-            
-            if not conversations:
-                return None
-            
-            # Preparar textos para vectorización
-            user_inputs = [conv[0] for conv in conversations]
-            
-            # Vectorizar entrada actual y conversaciones previas
-            if len(user_inputs) >= 5:  # Necesitamos suficientes ejemplos para vectorización efectiva
-                try:
-                    # Vectorizar
-                    vectorizer = TfidfVectorizer(lowercase=True, ngram_range=(1, 2))
-                    tfidf_matrix = vectorizer.fit_transform(user_inputs + [input_text])
-                    
-                    # Calcular similitud coseno
-                    cosine_similarities = cosine_similarity(tfidf_matrix[-1:], tfidf_matrix[:-1])[0]
-                    
-                    # Encontrar la conversación más similar
-                    max_similarity_idx = np.argmax(cosine_similarities)
-                    max_similarity = cosine_similarities[max_similarity_idx]
-                    
-                    # Si hay similitud suficiente, devolver la respuesta correspondiente
-                    if max_similarity > 0.6:
-                        return conversations[max_similarity_idx][1]
-                except Exception as e:
-                    self.logger.warning(f"Error en la vectorización durante búsqueda semántica: {str(e)}")
-                    return None
-            
-            return None
-            
-        except Exception as e:
-            self.logger.error(f"Error en búsqueda semántica: {str(e)}")
-            return None
-    
-    def add_fact(self, content, category=None, importance=1.0):
-        """Añade un nuevo hecho/concepto a la base de conocimiento"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Insertar nuevo hecho
-            cursor.execute('''
-            INSERT INTO facts (content, category, importance, created_at)
-            VALUES (?, ?, ?, datetime('now'))
-            ''', (content, category, importance))
-            
-            fact_id = cursor.lastrowid
-            
-            # Actualizar vectores semánticos
-            self._update_semantic_vector(conn, fact_id, content, 'fact')
+            # Insertar etiquetas si existen
+            if tags and isinstance(tags, list):
+                for tag in tags:
+                    cursor.execute(
+                        'INSERT INTO tags (fact_id, tag) VALUES (?, ?)',
+                        (fact_id, tag)
+                    )
             
             conn.commit()
             conn.close()
             
-            self.logger.info(f"Nuevo hecho añadido: ID {fact_id}, categoría {category}")
             return fact_id
             
         except Exception as e:
             self.logger.error(f"Error al añadir hecho: {str(e)}")
             return None
     
-    def add_conversation(self, user_input, system_response, feedback=0):
-        """Registra una conversación en la base de conocimiento"""
+    def search_facts(self, query, category=None, limit=10):
+        """
+        Busca hechos en la base de conocimiento
+        
+        Args:
+            query (str): Texto a buscar
+            category (str, optional): Filtrar por categoría
+            limit (int, optional): Límite de resultados
+            
+        Returns:
+            list: Lista de hechos encontrados
+        """
+        results = []
+        
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_file)
+            conn.row_factory = sqlite3.Row  # Para acceder a resultados por nombre
             cursor = conn.cursor()
             
-            # Insertar conversación
-            cursor.execute('''
-            INSERT INTO conversations (user_input, system_response, timestamp, feedback)
-            VALUES (?, ?, datetime('now'), ?)
-            ''', (user_input, system_response, feedback))
+            # Construir consulta SQL
+            sql = 'SELECT * FROM facts WHERE 1=1'
+            params = []
             
-            conversation_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+            # Añadir filtro de texto
+            if query:
+                sql += ' AND content LIKE ?'
+                params.append(f'%{query}%')
             
-            # Analizar características lingüísticas del usuario
-            self._analyze_user_linguistics(user_input)
+            # Añadir filtro de categoría
+            if category:
+                sql += ' AND category = ?'
+                params.append(category)
             
-            return conversation_id
+            # Ordenar por importancia y limitar resultados
+            sql += ' ORDER BY importance DESC LIMIT ?'
+            params.append(limit)
             
-        except Exception as e:
-            self.logger.error(f"Error al registrar conversación: {str(e)}")
-            return None
-    
-    def _analyze_user_linguistics(self, text):
-        """Analiza las características lingüísticas del texto del usuario"""
-        try:
-            # Analizar expresiones comunes
-            common_phrases = re.findall(r'\b(\w+\s+\w+\s+\w+)\b', text.lower())
+            # Ejecutar consulta
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
             
-            # Analizar palabras frecuentes
-            words = re.findall(r'\b(\w+)\b', text.lower())
-            
-            # Registrar en base de datos
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Registrar frases comunes
-            for phrase in common_phrases:
-                cursor.execute('''
-                SELECT id, frequency FROM user_linguistics 
-                WHERE feature_type = 'phrase' AND feature_value = ?
-                ''', (phrase,))
-                
-                result = cursor.fetchone()
-                
-                if result:
-                    cursor.execute('''
-                    UPDATE user_linguistics 
-                    SET frequency = ?, last_observed = datetime('now')
-                    WHERE id = ?
-                    ''', (result[1] + 1, result[0]))
-                else:
-                    cursor.execute('''
-                    INSERT INTO user_linguistics (feature_type, feature_value, frequency, last_observed)
-                    VALUES ('phrase', ?, 1, datetime('now'))
-                    ''', (phrase,))
-            
-            # Registrar palabras frecuentes (solo las relevantes)
-            stop_words = {"el", "la", "los", "las", "un", "una", "unos", "unas", "y", "o", "a", "ante", "bajo", "con", 
-                         "de", "desde", "en", "entre", "hacia", "hasta", "para", "por", "según", "sin", "sobre", "tras"}
-            
-            for word in words:
-                if len(word) > 3 and word not in stop_words:
-                    cursor.execute('''
-                    SELECT id, frequency FROM user_linguistics 
-                    WHERE feature_type = 'word' AND feature_value = ?
-                    ''', (word,))
-                    
-                    result = cursor.fetchone()
-                    
-                    if result:
-                        cursor.execute('''
-                        UPDATE user_linguistics 
-                        SET frequency = ?, last_observed = datetime('now')
-                        WHERE id = ?
-                        ''', (result[1] + 1, result[0]))
-                    else:
-                        cursor.execute('''
-                        INSERT INTO user_linguistics (feature_type, feature_value, frequency, last_observed)
-                        VALUES ('word', ?, 1, datetime('now'))
-                        ''', (word,))
-            
-            conn.commit()
-            conn.close()
-            
-        except Exception as e:
-            self.logger.error(f"Error al analizar lingüística: {str(e)}")
-    
-    def _update_semantic_vector(self, conn, content_id, content, content_type):
-        """Actualiza vectores semánticos para búsqueda eficiente"""
-        try:
-            cursor = conn.cursor()
-            
-            # Verificar si tenemos suficientes datos para vectorización
-            cursor.execute('SELECT COUNT(*) FROM facts')
-            fact_count = cursor.fetchone()[0]
-            
-            if fact_count < 5:  # Necesitamos más datos para vectorización efectiva
-                return
-            
-            # Obtener todos los contenidos para re-entrenar vectorizador
-            cursor.execute('SELECT id, content FROM facts')
-            facts = cursor.fetchall()
-            
-            fact_ids = [fact[0] for fact in facts]
-            fact_contents = [fact[1] for fact in facts]
-            
-            # Entrenar vectorizador
-            vectors = self.vectorizer.fit_transform(fact_contents)
-            
-            # Limpiar vectores anteriores
-            cursor.execute('DELETE FROM semantic_vectors WHERE content_type = ?', (content_type,))
-            
-            # Guardar vectores
-            for i in range(len(fact_ids)):
-                vector_blob = vectors[i].toarray().tobytes()
-                
-                cursor.execute('''
-                INSERT INTO semantic_vectors (content_id, content_type, vector)
-                VALUES (?, ?, ?)
-                ''', (fact_ids[i], content_type, vector_blob))
-            
-        except Exception as e:
-            self.logger.error(f"Error al actualizar vectores semánticos: {str(e)}")
-    
-    def get_training_data(self):
-        """Obtiene datos para entrenamiento del modelo de ML"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Obtener hechos y conversaciones
-            cursor.execute('SELECT content FROM facts')
-            facts = [row[0] for row in cursor.fetchall()]
-            
-            cursor.execute('SELECT user_input, system_response FROM conversations')
-            conversations = cursor.fetchall()
+            # Convertir a lista de diccionarios
+            for row in rows:
+                results.append({
+                    'id': row['id'],
+                    'content': row['content'],
+                    'category': row['category'],
+                    'importance': row['importance'],
+                    'timestamp': row['timestamp']
+                })
             
             conn.close()
-            
-            # Combinar datos para entrenamiento
-            training_data = facts.copy()
-            
-            for user_input, system_response in conversations:
-                training_data.append(user_input)
-                training_data.append(system_response)
-            
-            return training_data
-            
-        except Exception as e:
-            self.logger.error(f"Error al obtener datos de entrenamiento: {str(e)}")
-            return []
-    
-    def get_facts_by_category(self, category):
-        """Obtiene hechos/conceptos por categoría"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-            SELECT id, content, importance FROM facts
-            WHERE category = ?
-            ORDER BY importance DESC
-            ''', (category,))
-            
-            facts = cursor.fetchall()
-            conn.close()
-            
-            # Actualizar estadísticas de acceso
-            if facts:
-                self._update_access_stats([fact[0] for fact in facts])
-            
-            return [{"id": fact[0], "content": fact[1], "importance": fact[2]} for fact in facts]
-            
-        except Exception as e:
-            self.logger.error(f"Error al obtener hechos por categoría: {str(e)}")
-            return []
-    
-    def search_facts(self, query, limit=10):
-        """Busca hechos/conceptos por similitud con la consulta"""
-        try:
-            # Obtener todos los hechos
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('SELECT id, content, category, importance FROM facts')
-            facts = cursor.fetchall()
-            
-            if not facts:
-                conn.close()
-                return []
-            
-            # Preparar datos para vectorización
-            fact_ids = [fact[0] for fact in facts]
-            fact_contents = [fact[1] for fact in facts]
-            
-            # Vectorizar hechos y consulta
-            tfidf_matrix = self.vectorizer.fit_transform(fact_contents + [query])
-            
-            # Calcular similitud
-            cosine_similarities = cosine_similarity(tfidf_matrix[-1:], tfidf_matrix[:-1])[0]
-            
-            # Combinar con importancia para ranking final
-            rankings = []
-            for i, (fact_id, _, _, importance) in enumerate(facts):
-                similarity = cosine_similarities[i]
-                # Fórmula de ranking: 70% similitud + 30% importancia
-                combined_score = (0.7 * similarity) + (0.3 * float(importance))
-                rankings.append((fact_id, combined_score))
-            
-            # Ordenar por ranking y obtener los mejores resultados
-            rankings.sort(key=lambda x: x[1], reverse=True)
-            top_fact_ids = [fact_id for fact_id, _ in rankings[:limit]]
-            
-            # Obtener información completa de los mejores resultados
-            results = []
-            for fact_id in top_fact_ids:
-                for fact in facts:
-                    if fact[0] == fact_id:
-                        results.append({
-                            "id": fact[0],
-                            "content": fact[1],
-                            "category": fact[2],
-                            "importance": fact[3]
-                        })
-                        break
-            
-            conn.close()
-            
-            # Actualizar estadísticas de acceso
-            if results:
-                self._update_access_stats([r["id"] for r in results])
-            
-            return results
             
         except Exception as e:
             self.logger.error(f"Error al buscar hechos: {str(e)}")
-            return []
+        
+        return results
     
-    def _update_access_stats(self, fact_ids):
-        """Actualiza estadísticas de acceso para hechos consultados"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+    def get_predefined_response(self, input_text):
+        """
+        Obtiene una respuesta predefinida basada en el texto de entrada
+        
+        Args:
+            input_text (str): Texto de entrada del usuario
             
-            for fact_id in fact_ids:
-                cursor.execute('''
-                UPDATE facts 
-                SET last_accessed = datetime('now'), 
-                    access_count = access_count + 1
-                WHERE id = ?
-                ''', (fact_id,))
+        Returns:
+            str: Respuesta predefinida
+        """
+        if not input_text or not isinstance(input_text, str):
+            return self.predefined_responses.get("unknown", "No entiendo su solicitud, Su Majestad.")
+        
+        input_lower = input_text.lower()
+        
+        # Detectar saludos
+        if any(greeting in input_lower for greeting in ["hola", "saludos", "buenos días", "buenas tardes", "buenas noches"]):
+            return self.predefined_responses.get("greeting", "Saludos, Su Majestad.")
+        
+        # Detectar despedidas
+        if any(farewell in input_lower for farewell in ["adiós", "hasta luego", "nos vemos", "chao"]):
+            return self.predefined_responses.get("farewell", "Hasta pronto, Su Majestad.")
+        
+        # Buscar hechos relacionados
+        facts = self.search_facts(input_text, limit=3)
+        
+        if facts:
+            # Construir respuesta basada en hechos encontrados
+            response = "Su Majestad, según mi conocimiento: "
             
-            conn.commit()
-            conn.close()
+            # Añadir hechos
+            for i, fact in enumerate(facts):
+                if i > 0:
+                    response += " Además, "
+                response += fact['content']
             
-        except Exception as e:
-            self.logger.error(f"Error al actualizar estadísticas de acceso: {str(e)}")
+            # Añadir fuente si hay categoría
+            if len(facts) > 0 and facts[0]['category']:
+                response += f" Esta información está relacionada con {facts[0]['category']}."
+            
+            return response
+        
+        # Respuesta por defecto
+        return self.predefined_responses.get("unknown", "No tengo información sobre eso, Su Majestad.")

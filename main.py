@@ -17,9 +17,14 @@ import json
 import traceback
 import time
 from datetime import datetime
+from modules.knowledge_harvester import KnowledgeHarvester
+from modules.content_moderator import ContentModerator
 
-
-
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 def fix_qt_display_issue():
     import os
@@ -118,93 +123,185 @@ def configure_robust_logging():
     sys.excepthook = handle_exception
 
 class AISystem:
-    """Sistema de IA principal que coordina todos los componentes"""
+    """Clase principal del sistema de IA"""
     
     def __init__(self):
-        """Inicializa el sistema y carga la configuración"""
+        """Inicializa el sistema de IA"""
         self.logger = logging.getLogger("AISystem")
         self.logger.info("Inicializando sistema de IA...")
         
-        # Establecer el estado del sistema como no iniciado
-        self.is_running = False
+        # Definir rutas de archivos y directorios importantes
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.config_dir = os.path.join(self.base_dir, "config")
+        self.models_dir = os.path.join(self.base_dir, "models")
+        self.data_dir = os.path.join(self.base_dir, "data")
+        self.logs_dir = os.path.join(self.base_dir, "logs")
+        self.conversation_dir = os.path.join(self.base_dir, "conversation_history")
         
-        # Aseguramos que existan las carpetas necesarias
-        self._ensure_directories()
-        
-        try:
-            # Inicializamos el administrador de configuración
-            self.config = ConfigManager("config/settings.json")
-            
-            # Inicializamos los componentes principales con manejo de errores
-            self._init_components()
-            
-            # Estado del sistema
-            self.conversation_history = []
-            
-            self.logger.info("Sistema de IA inicializado correctamente")
-        except Exception as e:
-            self.logger.error(f"Error al inicializar el sistema: {str(e)}")
-            traceback.print_exc()
-            raise
-    
-    def _ensure_directories(self):
-        """Crea las carpetas necesarias si no existen"""
-        directories = ["logs", "data", "models", "config", "resources", "conversation_history"]
-        for directory in directories:
+        # Crear directorios si no existen
+        for directory in [self.config_dir, self.models_dir, self.data_dir, 
+                         self.logs_dir, self.conversation_dir]:
             if not os.path.exists(directory):
                 os.makedirs(directory)
-                self.logger.info(f"Directorio {directory} creado")
+        
+        # Definir rutas a archivos específicos
+        self.config_file = os.path.join(self.config_dir, "settings.json")
+        self.db_file = os.path.join(self.data_dir, "knowledge.db")
+        
+        # Crear archivo de configuración básico si no existe
+        if not os.path.exists(self.config_file):
+            self._create_default_config()
+        
+        # Estado del sistema
+        self.is_running = False
+        self.conversation_history = []
+        
+        # Inicializar componentes
+        self._init_components()
+        
+        self.logger.info("Sistema de IA inicializado correctamente")
+    
+    def _create_default_config(self):
+        """Crea un archivo de configuración por defecto"""
+        default_config = {
+            "system": {
+                "name": "Asistente IA",
+                "version": "1.0.0",
+                "log_level": "INFO"
+            },
+            "voice": {
+                "enabled": True,
+                "language": "es",
+                "voice_id": "com.mx",
+                "rate": 1.0,
+                "volume": 1.0
+            },
+            "knowledge": {
+                "auto_harvesting": True,
+                "harvesting_interval": 3600
+            },
+            "ml": {
+                "training_interval": 86400,
+                "model_backup_interval": 604800
+            },
+            "gui": {
+                "theme": "dark",
+                "font_size": 12,
+                "window_width": 1200,
+                "window_height": 800
+            }
+        }
+        
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(default_config, f, indent=4)
+            self.logger.info(f"Archivo de configuración por defecto creado: {self.config_file}")
+        except Exception as e:
+            self.logger.error(f"Error al crear configuración por defecto: {str(e)}")
     
     def _init_components(self):
         """Inicializa los componentes del sistema con manejo de errores"""
-        # Inicializar componentes con gestión de errores
+        # Inicializar gestor de configuración PRIMERO
         try:
-            self.knowledge_base = KnowledgeBase(self.config.get("knowledge_base_path"))
+            self.config_manager = ConfigManager(self.config_file)
+        except Exception as e:
+            self.logger.error(f"Error al inicializar gestor de configuración: {str(e)}")
+            self.config_manager = None
+        
+        # Inicializar base de conocimiento
+        try:
+            self.knowledge_base = KnowledgeBase(self.db_file)
         except Exception as e:
             self.logger.error(f"Error al inicializar base de conocimiento: {str(e)}")
-            # Crear un valor por defecto para que el sistema pueda continuar
-            self.knowledge_base = KnowledgeBase("data/knowledge")
+            self.knowledge_base = None
         
+        # Inicializar procesador de texto
         try:
-            self.ml_engine = MLEngine(self.config.get("ml_model_path"), self.knowledge_base)
-        except Exception as e:
-            self.logger.error(f"Error al inicializar motor de ML: {str(e)}")
-            # Crear un valor por defecto para que el sistema pueda continuar
-            self.ml_engine = MLEngine("models", self.knowledge_base)
-        
-        try:
-            self.text_processor = TextProcessor(self.config.get("language_model"))
+            self.text_processor = TextProcessor()
         except Exception as e:
             self.logger.error(f"Error al inicializar procesador de texto: {str(e)}")
-            # Crear un valor por defecto para que el sistema pueda continuar
-            self.text_processor = TextProcessor({"language": "es", "model": "es_core_news_sm"})
+            self.text_processor = None
         
+        # Inicializar moderador de contenido (sin restricciones)
         try:
-            self.voice_manager = VoiceManager(self.config.get("voice_settings"))
+            self.content_moderator = ContentModerator()
+        except Exception as e:
+            self.logger.error(f"Error al inicializar moderador de contenido: {str(e)}")
+            self.content_moderator = None
+        
+        # Inicializar motor ML
+        try:
+            if self.knowledge_base:
+                self.ml_engine = MLEngine(
+                    model_path=self.models_dir,
+                    knowledge_base=self.knowledge_base,
+                    max_sequence_length=100,
+                    embedding_dim=256
+                )
+            else:
+                self.logger.error("No se puede inicializar ML Engine: knowledge_base no disponible")
+                self.ml_engine = None
+        except Exception as e:
+            self.logger.error(f"Error al inicializar motor ML: {str(e)}")
+            self.ml_engine = None
+        
+        # Inicializar gestor de voz
+        try:
+            self.voice_manager = VoiceManager()
+            
+            # Configurarlo (opcional, si está implementado)
+            if hasattr(self.voice_manager, 'set_language') and self.config_manager:
+                self.voice_manager.set_language(
+                    self.config_manager.get('voice', 'language', default='es')
+                )
+            if hasattr(self.voice_manager, 'set_voice') and self.config_manager:
+                self.voice_manager.set_voice(
+                    self.config_manager.get('voice', 'voice_id', default='com.mx')
+                )
         except Exception as e:
             self.logger.error(f"Error al inicializar gestor de voz: {str(e)}")
-            # Crear un valor por defecto para que el sistema pueda continuar
-            self.voice_manager = VoiceManager({"enabled": True, "language": "es", "tld": "com.mx"})
+            self.voice_manager = None
+        
+        # AHORA inicializar el recolector de conocimiento (DESPUÉS de KB y text_processor)
+        try:
+            if self.knowledge_base and self.text_processor:
+                self.knowledge_harvester = KnowledgeHarvester(self.knowledge_base, self.text_processor)
+                self.logger.info("Recolector de conocimiento inicializado correctamente")
+            else:
+                self.logger.error("No se pudo inicializar recolector: falta knowledge_base o text_processor")
+                self.knowledge_harvester = None
+        except Exception as e:
+            self.logger.error(f"Error al inicializar recolector de conocimiento: {str(e)}")
+            self.knowledge_harvester = None
     
     def start(self):
         """Inicia todos los servicios de la IA y lanza la interfaz gráfica"""
         if self.is_running:
             self.logger.warning("El sistema ya está en ejecución")
             return
-            
+        
         self.logger.info("Iniciando sistema de IA...")
         
         try:
-            # Iniciar componentes en hilos separados
-            self.ml_engine.start()
-            self.voice_manager.start()
+            # Iniciar componentes en hilos separados si están disponibles
+            if self.ml_engine:
+                self.ml_engine.start()
+            else:
+                self.logger.warning("ML Engine no disponible, no se iniciará")
+                
+            if self.voice_manager:
+                self.voice_manager.start()
+            else:
+                self.logger.warning("Voice Manager no disponible, no se iniciará")
+            
+            # No iniciamos el recolector automáticamente, se hará desde la interfaz
             
             # Marcar como en ejecución
             self.is_running = True
             
-            # Iniciar la interfaz gráfica (sin usar worker thread)
+            # Iniciar la interfaz gráfica
             self.gui = ApplicationGUI(self)
-            return self.gui.run()  # Llamar directamente al método run de ApplicationGUI
+            return self.gui.run()
         except Exception as e:
             self.logger.error(f"Error al iniciar el sistema: {str(e)}")
             traceback.print_exc()
@@ -217,132 +314,99 @@ class AISystem:
             return "Estoy esperando su comando, Su Majestad."
         
         try:
-            # Registrar la entrada del usuario
-            self.logger.info(f"Procesando entrada: {user_input}")
-            self.conversation_history.append({"role": "user", "content": user_input, "timestamp": datetime.now().isoformat()})
+            # Guardar entrada en historial
+            self.conversation_history.append({
+                "role": "user",
+                "content": user_input,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
             
-            # Procesar el texto usando NLP
-            try:
-                processed_input = self.text_processor.process(user_input)
-            except Exception as e:
-                self.logger.error(f"Error al procesar texto: {str(e)}")
-                processed_input = {"original": user_input, "processed": user_input}
+            # Generar respuesta usando el motor ML
+            if self.ml_engine:
+                response = self.ml_engine.generate_response(user_input, self.conversation_history)
+            else:
+                response = "Lo siento, Su Majestad, el motor de procesamiento no está disponible en este momento."
             
-            # Obtener respuesta del motor de ML
-            try:
-                response = self.ml_engine.generate_response(processed_input, self.conversation_history)
-            except Exception as e:
-                self.logger.error(f"Error al generar respuesta: {str(e)}")
-                response = "Lo siento, Su Majestad, estoy teniendo dificultades para procesar su solicitud en este momento."
-            
-            # Registrar la respuesta
-            self.logger.info(f"Respuesta generada: {response}")
-            self.conversation_history.append({"role": "assistant", "content": response, "timestamp": datetime.now().isoformat()})
+            # Guardar respuesta en historial
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
             
             # Generar respuesta de voz si está habilitado
-            if use_voice and response:
-                try:
-                    threading.Thread(target=self.voice_manager.speak, args=(response,)).start()
-                except Exception as e:
-                    self.logger.error(f"Error al iniciar síntesis de voz: {str(e)}")
+            if use_voice and self.voice_manager:
+                self.voice_manager.speak(response)
             
-            # Guardar historial de conversación periódicamente
-            if len(self.conversation_history) % 10 == 0:
-                self._save_conversation_history()
-                
             return response
+            
         except Exception as e:
             self.logger.error(f"Error al procesar entrada: {str(e)}")
-            traceback.print_exc()
-            return "Lo siento, Su Majestad, ha ocurrido un error al procesar su solicitud."
-    
-    def _save_conversation_history(self):
-        """Guarda el historial de conversación en un archivo JSON"""
-        try:
-            if not os.path.exists("conversation_history"):
-                os.makedirs("conversation_history")
-                
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"conversation_history/conversation_{timestamp}.json"
-            
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(self.conversation_history, f, ensure_ascii=False, indent=2)
-            
-            self.logger.info(f"Historial de conversación guardado en {filename}")
-        except Exception as e:
-            self.logger.error(f"Error al guardar historial de conversación: {str(e)}")
+            return f"Lo siento, Su Majestad, he tenido un problema al procesar su solicitud. ({str(e)})"
     
     def shutdown(self):
         """Detiene todos los servicios y guarda el estado"""
         if not self.is_running:
             return
-            
+        
         self.logger.info("Apagando sistema de IA...")
         
         # Guardar historial de conversación
-        self._save_conversation_history()
-        
-        # Detener componentes
         try:
-            if hasattr(self, 'ml_engine'):
+            if self.conversation_history:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                history_file = os.path.join(self.conversation_dir, f"conversation_{timestamp}.json")
+                
+                with open(history_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.conversation_history, f, indent=4, ensure_ascii=False)
+                
+                self.logger.info(f"Historial de conversación guardado en {history_file}")
+        except Exception as e:
+            self.logger.error(f"Error al guardar historial: {str(e)}")
+        
+        # Detener componentes en orden inverso
+        try:
+            if hasattr(self, 'ml_engine') and self.ml_engine:
                 self.ml_engine.stop()
         except Exception as e:
             self.logger.error(f"Error al detener motor ML: {str(e)}")
         
         try:
-            if hasattr(self, 'voice_manager'):
+            if hasattr(self, 'voice_manager') and self.voice_manager:
                 self.voice_manager.stop()
         except Exception as e:
             self.logger.error(f"Error al detener gestor de voz: {str(e)}")
         
-        # Marcar como detenido
+        try:
+            if hasattr(self, 'knowledge_harvester') and self.knowledge_harvester and self.knowledge_harvester.is_running:
+                self.knowledge_harvester.stop()
+        except Exception as e:
+            self.logger.error(f"Error al detener recolector de conocimiento: {str(e)}")
+        
         self.is_running = False
         self.logger.info("Sistema de IA apagado correctamente")
 
-def splash_screen():
-    """Muestra una pantalla de bienvenida en la consola"""
-    print("\n" + "="*80)
-    print(" "*20 + "SISTEMA DE INTELIGENCIA ARTIFICIAL MODULAR")
-    print(" "*20 + "Desarrollado para Su Majestad")
-    print(" "*20 + "Versión 1.0.0")
-    print("="*80 + "\n")
+# Función principal para ejecutar el sistema
+def main():
+    """Función principal para iniciar el sistema"""
+    print("="*80)
+    print("                    SISTEMA DE INTELIGENCIA ARTIFICIAL MODULAR")
+    print("                    Desarrollado para Su Majestad")
+    print("                    Versión 1.0.0")
+    print("="*80)
     print("Inicializando componentes...")
+    print("  \\ Cargando sistema...")
     
-    # Pequeño spinner de carga
-    for _ in range(5):
-        for c in "|/-\\":
-            sys.stdout.write(f"\r  {c} Cargando sistema...")
-            sys.stdout.flush()
-            time.sleep(0.1)
+    # Crear e iniciar sistema
+    system = AISystem()
+    print("Sistema listo!")
     
-    print("\n\nSistema listo!\n")
+    # Ejecutar sistema
+    result = system.start()
+    
+    logging.info("Sistema terminado")
+    return result
 
+# Punto de entrada
 if __name__ == "__main__":
-    """Punto de entrada principal al sistema"""
-    try:
-        # Mostrar pantalla de inicio
-        splash_screen()
-        
-        # Configurar sistema de logging robusto
-        configure_robust_logging()
-        
-        # Inicializar sistema de IA
-        ai_system = AISystem()
-        
-        # Iniciar interfaz (no devuelve hasta cerrar la ventana)
-        exit_code = ai_system.start()
-        
-        # Salir con código de estado
-        sys.exit(exit_code)
-    except KeyboardInterrupt:
-        logging.info("Sistema interrumpido por el usuario")
-        try:
-            if 'ai_system' in locals():
-                ai_system.shutdown()
-        except:
-            pass
-    except Exception as e:
-        logging.error(f"Error fatal en el sistema: {str(e)}", exc_info=True)
-        traceback.print_exc()
-    finally:
-        logging.info("Sistema terminado")
+    sys.exit(main())
