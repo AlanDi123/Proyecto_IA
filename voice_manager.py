@@ -26,20 +26,35 @@ class VoiceManager:
         self.logger.info("Inicializando gestor de voz...")
         
         # Configuración de voz
-        self.settings = voice_settings
-        self.language = voice_settings.get("language", "es")
-        self.tld = voice_settings.get("tld", "com.mx")  # Dominio de nivel superior para acento latinoamericano
-        self.speed = voice_settings.get("speed", 1.0)
-        self.pitch = voice_settings.get("pitch", 1.0)
+        self.settings = voice_settings or {}
+        self.language = self.settings.get("language", "es")
+        self.tld = self.settings.get("tld", "com.mx")  # Dominio de nivel superior para acento latinoamericano
+        self.speed = self.settings.get("speed", 1.0)
+        self.pitch = self.settings.get("pitch", 1.0)
         
         # Inicializar pygame para reproducción de audio
+        self.pygame_available = False
         try:
-            pygame.mixer.init()
+            # Inicializar pygame de forma segura
+            if not pygame.get_init():
+                pygame.init()
+            
+            # Inicializar el módulo de audio específicamente
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
+            
             self.pygame_available = True
             self.logger.info("Pygame inicializado correctamente")
         except Exception as e:
-            self.logger.warning(f"No se pudo inicializar pygame: {str(e)}. La síntesis de voz estará deshabilitada.")
-            self.pygame_available = False
+            self.logger.warning(f"No se pudo inicializar pygame: {str(e)}. Intentando alternativa...")
+            try:
+                # Reintentar con una configuración de audio diferente
+                pygame.mixer.quit()
+                pygame.mixer.init(frequency=22050, size=-16, channels=1, buffer=2048)
+                self.pygame_available = True
+                self.logger.info("Pygame inicializado con configuración alternativa")
+            except Exception as ex:
+                self.logger.warning(f"No se pudo inicializar audio: {str(ex)}. La síntesis de voz estará disponible pero sin reproducción.")
         
         # Cola de mensajes para síntesis
         self.speech_queue = queue.Queue()
@@ -80,9 +95,20 @@ class VoiceManager:
         self.is_running = False
         
         # Detener reproducción actual
-        if self.is_speaking:
-            pygame.mixer.music.stop()
-            self.is_speaking = False
+        if self.is_speaking and self.pygame_available:
+            try:
+                pygame.mixer.music.stop()
+            except Exception as e:
+                self.logger.warning(f"Error al detener reproducción: {str(e)}")
+                
+        self.is_speaking = False
+            
+        # Esperar a que el hilo termine
+        if hasattr(self, 'voice_thread') and self.voice_thread.is_alive():
+            try:
+                self.voice_thread.join(timeout=1.0)  # Esperar 1 segundo máximo
+            except Exception as e:
+                self.logger.warning(f"Error al esperar finalización del hilo: {str(e)}")
             
         # Limpiar archivos temporales
         self._clean_temp_files()
@@ -91,7 +117,7 @@ class VoiceManager:
     
     def speak(self, text):
         """Añade texto a la cola para síntesis de voz"""
-        if not text or not self.is_running:
+        if not text or not self.is_running or not isinstance(text, str):
             return
             
         # Segmentar texto largo en frases para mejor fluidez
@@ -105,27 +131,46 @@ class VoiceManager:
     
     def _split_into_sentences(self, text):
         """Divide el texto en frases para mejor procesamiento"""
-        # Separar por puntos, exclamaciones, interrogaciones
-        raw_sentences = []
-        for sep in ['. ', '! ', '? ', '.\n', '!\n', '?\n']:
-            fragments = []
-            for fragment in text.split(sep):
-                if fragment:
-                    fragments.append(fragment)
-            if fragments:
-                raw_sentences.extend([f"{s}{sep[0]}" for s in fragments[:-1]])
-                raw_sentences.append(fragments[-1])
-                break
+        # Verificar si el texto está vacío o no es una cadena
+        if not text or not isinstance(text, str):
+            return []
+            
+        # Dividir por puntos, exclamaciones, interrogaciones
+        separators = ['. ', '! ', '? ', '.\n', '!\n', '?\n', '; ']
+        sentences = []
         
-        # Si no se pudo dividir, usar el texto completo
-        if not raw_sentences:
-            raw_sentences = [text]
+        # Texto restante a procesar
+        remaining_text = text.strip()
+        
+        # Mientras quede texto por procesar
+        while remaining_text:
+            found_separator = False
+            
+            # Buscar el primer separador en el texto
+            for sep in separators:
+                pos = remaining_text.find(sep)
+                if pos >= 0:
+                    # Añadir la frase encontrada incluyendo el separador
+                    sentence = remaining_text[:pos+1].strip()  # +1 para incluir el punto, signo, etc.
+                    if sentence:
+                        sentences.append(sentence)
+                    
+                    # Actualizar el texto restante
+                    remaining_text = remaining_text[pos+len(sep)-1:].strip()
+                    found_separator = True
+                    break
+            
+            # Si no se encontró ningún separador, añadir todo el texto restante
+            if not found_separator:
+                if remaining_text:
+                    sentences.append(remaining_text)
+                remaining_text = ""
         
         # Verificar longitud máxima (gTTS tiene límites)
         max_length = 500
         result = []
         
-        for sentence in raw_sentences:
+        for sentence in sentences:
             if len(sentence) <= max_length:
                 result.append(sentence)
             else:
@@ -171,21 +216,39 @@ class VoiceManager:
                     self.is_speaking = True
                     
                     # Reproducir audio
-                    pygame.mixer.music.load(audio_file)
-                    pygame.mixer.music.play()
-                    
-                    # Esperar a que termine la reproducción
-                    while pygame.mixer.music.get_busy() and self.is_running:
-                        time.sleep(0.1)
+                    if self.pygame_available:
+                        try:
+                            pygame.mixer.music.load(audio_file)
+                            pygame.mixer.music.play()
+                            
+                            # Esperar a que termine la reproducción
+                            while pygame.mixer.music.get_busy() and self.is_running:
+                                time.sleep(0.1)
+                        except Exception as e:
+                            self.logger.error(f"Error al reproducir audio con pygame: {str(e)}")
+                            # Intentar fallback con pydub
+                            try:
+                                sound = AudioSegment.from_file(audio_file, format="mp3")
+                                play(sound)
+                            except Exception as e2:
+                                self.logger.error(f"Error al reproducir audio con pydub: {str(e2)}")
+                    else:
+                        # Si pygame no está disponible, intentar con pydub
+                        try:
+                            sound = AudioSegment.from_file(audio_file, format="mp3")
+                            play(sound)
+                        except Exception as e:
+                            self.logger.error(f"Error al reproducir audio con pydub: {str(e)}")
                     
                     # Marcar como completado
                     self.is_speaking = False
                     
                     # Eliminar archivo temporal
                     try:
-                        os.remove(audio_file)
-                    except:
-                        pass
+                        if os.path.exists(audio_file):
+                            os.remove(audio_file)
+                    except Exception as e:
+                        self.logger.warning(f"Error al eliminar archivo temporal {audio_file}: {str(e)}")
                     
                 # Marcar como procesado en la cola
                 self.speech_queue.task_done()
@@ -206,9 +269,15 @@ class VoiceManager:
             tts = gTTS(text=text, lang=self.language, tld=self.tld, slow=False)
             tts.save(temp_file)
             
+            # Verificar que el archivo se haya creado correctamente
+            if not os.path.exists(temp_file) or os.path.getsize(temp_file) == 0:
+                raise Exception("El archivo de audio generado está vacío o no existe")
+            
             # Modificar velocidad y tono si es necesario
             if self.speed != 1.0 or self.pitch != 1.0:
-                self._modify_audio(temp_file, self.speed, self.pitch)
+                result = self._modify_audio(temp_file, self.speed, self.pitch)
+                if not result:
+                    self.logger.warning(f"No se pudo modificar la velocidad/tono del audio. Se usará el audio original.")
             
             return temp_file
             
@@ -224,19 +293,34 @@ class VoiceManager:
             
             # Aplicar cambios
             if speed != 1.0:
-                sound = sound.speedup(playback_speed=speed)
-            
-            # Para el pitch necesitaríamos bibliotecas adicionales como librosa
-            # Esta es una implementación básica que podría mejorarse
+                # Implementación segura del cambio de velocidad
+                try:
+                    sound = sound.speedup(playback_speed=speed)
+                except AttributeError:
+                    # Fallback para versiones antiguas de pydub
+                    if speed > 1.0:  # Acelerar
+                        sound = sound._spawn(sound.raw_data, overrides={
+                            "frame_rate": int(sound.frame_rate * speed)
+                        }).set_frame_rate(sound.frame_rate)
+                    elif speed < 1.0:  # Ralentizar
+                        sound = sound._spawn(sound.raw_data, overrides={
+                            "frame_rate": int(sound.frame_rate / (2.0 - speed))
+                        }).set_frame_rate(sound.frame_rate)
             
             # Guardar audio modificado
             sound.export(file_path, format="mp3")
+            return True
+            
         except Exception as e:
             self.logger.error(f"Error al modificar audio: {str(e)}")
+            return False
     
     def _clean_temp_files(self):
         """Limpia archivos temporales de audio"""
         try:
+            if not os.path.exists(self.temp_dir):
+                return
+                
             for file in os.listdir(self.temp_dir):
                 if file.startswith("speech_") and file.endswith(".mp3"):
                     file_path = os.path.join(self.temp_dir, file)
@@ -248,3 +332,42 @@ class VoiceManager:
                         self.logger.warning(f"No se pudo eliminar archivo temporal {file_path}: {str(e)}")
         except Exception as e:
             self.logger.error(f"Error al limpiar archivos temporales: {str(e)}")
+    
+    def set_voice_settings(self, settings):
+        """Actualiza la configuración de voz durante la ejecución"""
+        if not settings or not isinstance(settings, dict):
+            return False
+            
+        try:
+            # Actualizar configuración
+            if "language" in settings:
+                self.language = settings["language"]
+            
+            if "tld" in settings:
+                self.tld = settings["tld"]
+                
+            if "speed" in settings:
+                self.speed = float(settings["speed"])
+                
+            if "pitch" in settings:
+                self.pitch = float(settings["pitch"])
+                
+            self.logger.info(f"Configuración de voz actualizada: idioma={self.language}, región={self.tld}, velocidad={self.speed}, tono={self.pitch}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error al actualizar configuración de voz: {str(e)}")
+            return False
+    
+    def is_available(self):
+        """Verifica si el servicio de voz está disponible"""
+        return self.is_running and (self.pygame_available or True)  # Siempre verdadero si está ejecutándose
+    
+    def test_voice(self, text="Esta es una prueba de la síntesis de voz"):
+        """Realiza una prueba de la síntesis de voz con el texto proporcionado"""
+        if not self.is_running:
+            self.logger.warning("El servicio de voz no está en ejecución. Iniciándolo...")
+            self.start()
+            
+        self.speak(text)
+        return True

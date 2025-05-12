@@ -19,41 +19,6 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QIcon, QFont, QTextCursor, QColor, QPalette, QSyntaxHighlighter, QTextCharFormat, QPixmap
 
-class CustomHighlighter(QSyntaxHighlighter):
-    """Resaltador de sintaxis personalizado para el historial de chat"""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        
-        # Formatos para diferentes tipos de texto
-        self.user_format = QTextCharFormat()
-        self.user_format.setForeground(QColor("#2979FF"))
-        self.user_format.setFontWeight(QFont.Weight.Bold)
-        
-        self.assistant_format = QTextCharFormat()
-        self.assistant_format.setForeground(QColor("#00BFA5"))
-        self.assistant_format.setFontWeight(QFont.Weight.Bold)
-        
-        self.timestamp_format = QTextCharFormat()
-        self.timestamp_format.setForeground(QColor("#9E9E9E"))
-        self.timestamp_format.setFontItalic(True)
-    
-    def highlightBlock(self, text):
-        """Aplica formato de resaltado al texto"""
-        # Resaltar líneas que comienzan con "Usuario:"
-        if text.startswith("Usuario:"):
-            self.setFormat(0, len("Usuario:"), self.user_format)
-        
-        # Resaltar líneas que comienzan con "Asistente:"
-        elif text.startswith("Asistente:"):
-            self.setFormat(0, len("Asistente:"), self.assistant_format)
-        
-        # Resaltar marcas de tiempo entre corchetes
-        timestamp_pattern = r'\[\d{2}:\d{2}:\d{2}\]'
-        start = text.find('[')
-        if start >= 0 and ']' in text[start:]:
-            end = text.find(']', start) + 1
-            self.setFormat(start, end - start, self.timestamp_format)
-
 class WorkerThread(QThread):
     """Hilo de trabajo para tareas en segundo plano"""
     update_signal = pyqtSignal(str)
@@ -66,31 +31,48 @@ class WorkerThread(QThread):
         self.result = None
     
     def run(self):
-        """Ejecuta la función objetivo en un hilo separado"""
-        try:
-            self.result = self.target_function(*self.args, **self.kwargs)
-            self.update_signal.emit(self.result)
-        except Exception as e:
-            self.update_signal.emit(f"Error: {str(e)}")
+        """Muestra la ventana principal y ejecuta el bucle de eventos"""
+        # Asegurar que estamos en la clase ApplicationGUI no en WorkerThread
+        from PyQt6.QtWidgets import QMainWindow
+        if not isinstance(self, QMainWindow):
+            print("ERROR: El método run() está siendo llamado desde un objeto que no es QMainWindow")
+            print(f"Tipo del objeto: {type(self)}")
+            # Si el objeto actual no es un QMainWindow, buscar la instancia de ApplicationGUI
+            try:
+                from PyQt6.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app:
+                    for widget in app.topLevelWidgets():
+                        if isinstance(widget, QMainWindow):
+                            print(f"Encontrado QMainWindow: {widget}")
+                            widget.show()
+                            return app.exec()
+            except Exception as e:
+                print(f"Error al buscar ventana principal: {e}")
+                return 1
+        
+        # Si somos un QMainWindow, mostrar normalmente
+        print("Mostrando ventana principal (ApplicationGUI)...")
+        self.show()
+        
+        # Retornar código de salida de la aplicación
+        print("Iniciando bucle de eventos Qt...")
+        return self._qt_app.exec()
 
 class ApplicationGUI(QMainWindow):
     def __init__(self, ai_system):
         """Inicializa la interfaz gráfica asegurando QApplication vivo."""
-        # ————————> PRIMERO: CREAR/QCARGAR QApplication <———————
-        from PyQt6.QtWidgets import QApplication
-        import sys
+        # ————————> PRIMERO: CREAR/CARGAR QApplication <———————
         app = QApplication.instance()
         if app is None:
+            import sys
             app = QApplication(sys.argv)
         # Guardamos la instancia para que no sea recolectada
         self._qt_app = app
 
         # ————————> SEGUNDO: LLAMAR AL CONSTRUCTOR DEL QMainWindow <———————
         super().__init__()
-
-        # Ahora sí continuamos con el resto de la inicialización
-        self._setup_styles()
-
+        
         
         self.logger = logging.getLogger("GUI")
         self.logger.info("Inicializando interfaz gráfica...")
@@ -120,29 +102,37 @@ class ApplicationGUI(QMainWindow):
     
     def _setup_styles(self):
         """Configura estilos y colores de la aplicación"""
-        # Usar paleta de colores oscura
+        # Usar paleta de colores moderna
         app = QApplication.instance()
         app.setStyle("Fusion")
         
-        # Definir paleta personalizada
+        # Definir paleta personalizada para tema oscuro
         palette = QPalette()
         
+        # Colores primarios - Azul oscuro con detalles en turquesa
+        primary_color = QColor(24, 24, 37)        # Azul muy oscuro
+        secondary_color = QColor(0, 180, 170)     # Turquesa
+        text_color = QColor(230, 230, 230)        # Blanco suave
+        dark_bg = QColor(18, 18, 30)              # Fondo más oscuro
+        panel_bg = QColor(35, 35, 50)             # Panels ligeramente más claros
+        highlight_color = QColor(0, 150, 136)     # Turquesa ligeramente más oscuro
+        
         # Colores de fondo
-        palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
-        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ColorRole.Window, primary_color)
+        palette.setColor(QPalette.ColorRole.WindowText, text_color)
+        palette.setColor(QPalette.ColorRole.Base, dark_bg)
+        palette.setColor(QPalette.ColorRole.AlternateBase, panel_bg)
         
         # Colores de texto
-        palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Text, text_color)
+        palette.setColor(QPalette.ColorRole.Button, panel_bg)
+        palette.setColor(QPalette.ColorRole.ButtonText, text_color)
         
         # Colores de selección
-        palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))
-        palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Highlight, highlight_color)
+        palette.setColor(QPalette.ColorRole.HighlightedText, text_color)
         
-        # Colores desactivados
+        # Colores desactivados - corregido para PyQt6
         palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(127, 127, 127))
         palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(127, 127, 127))
         palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(127, 127, 127))
@@ -153,6 +143,60 @@ class ApplicationGUI(QMainWindow):
         self.default_font = QFont("Segoe UI", 10)
         self.monospace_font = QFont("Consolas", 10)
         app.setFont(self.default_font)
+        
+        # Establecer hoja de estilo adicional (CSS para Qt)
+        app.setStyleSheet("""
+            QMainWindow {
+                border: none;
+            }
+            QTextEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #212134;
+            }
+            QPushButton {
+                background-color: #00B4A6;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #00968A;
+            }
+            QPushButton:pressed {
+                background-color: #007C72;
+            }
+            QPushButton:disabled {
+                background-color: #555;
+                color: #888;
+            }
+            QTabWidget::pane {
+                border: 1px solid #555;
+                border-radius: 4px;
+                background-color: #212134;
+            }
+            QTabBar::tab {
+                background-color: #2E2E45;
+                color: #CCC;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                padding: 6px 12px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background-color: #00B4A6;
+                color: white;
+            }
+            QTabBar::tab:!selected:hover {
+                background-color: #3F3F5F;
+            }
+            QFrame {
+                border-radius: 4px;
+            }
+        """)
     
     def _create_ui(self):
         """Crea los elementos de la interfaz de usuario"""
@@ -195,6 +239,7 @@ class ApplicationGUI(QMainWindow):
         # Barra de estado
         self.status_bar = self.statusBar()
         self.status_bar.showMessage("Sistema listo")
+        self.status_bar.setStyleSheet("color: #00B4A6;")
         
         # Centrar ventana en pantalla
         screen_geometry = QApplication.primaryScreen().geometry()
@@ -204,56 +249,92 @@ class ApplicationGUI(QMainWindow):
         self.move(x, y)
     
     def _create_chat_panel(self, parent_layout):
-        """Crea el panel de chat"""
+        """Crea el panel de chat con burbujas de mensajes"""
         # Título del panel
         chat_title = QLabel("Conversación con Asistente IA")
         chat_title.setFont(QFont(self.default_font.family(), 14, QFont.Weight.Bold))
         chat_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        chat_title.setStyleSheet("color: #00B4A6; margin-bottom: 10px;")
         parent_layout.addWidget(chat_title)
         
-        # Área de historial de chat
+        # Área de historial de chat estilizada
         self.chat_history = QTextEdit()
         self.chat_history.setReadOnly(True)
         self.chat_history.setFont(self.default_font)
         self.chat_history.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self.chat_history.setStyleSheet("""
+            QTextEdit {
+                background-color: #1a1a2a;
+                border: 1px solid #333;
+                border-radius: 6px;
+            }
+        """)
+        
+        # Documento para formateo CSS de mensajes
+        self.chat_history.document().setDefaultStyleSheet("""
+            .user-message {
+                background-color: #2D4263;
+                border-radius: 10px;
+                padding: 8px 12px;
+                margin: 4px 20px 4px 50px;
+                color: #ECDBBA;
+            }
+            .assistant-message {
+                background-color: #00796B;
+                border-radius: 10px;
+                padding: 8px 12px;
+                margin: 4px 50px 4px 20px;
+                color: #ECDBBA;
+            }
+            .timestamp {
+                color: #aaa;
+                font-size: 9px;
+                text-align: right;
+            }
+        """)
+        
         parent_layout.addWidget(self.chat_history)
         
-        # Aplicar resaltador personalizado al historial de chat
-        self.highlighter = CustomHighlighter(self.chat_history.document())
-        
-        # Panel de entrada
+        # Panel de entrada mejorado
         input_panel = QWidget()
         input_layout = QHBoxLayout(input_panel)
-        input_layout.setContentsMargins(0, 0, 0, 0)
+        input_layout.setContentsMargins(0, 10, 0, 0)
         input_layout.setSpacing(10)
         
-        # Campo de entrada
+        # Campo de entrada mejorado
         self.input_field = QTextEdit()
         self.input_field.setPlaceholderText("Escriba su mensaje aquí...")
         self.input_field.setMaximumHeight(80)
         self.input_field.setFont(self.default_font)
+        self.input_field.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #444;
+                border-radius: 6px;
+                padding: 8px;
+            }
+        """)
         input_layout.addWidget(self.input_field)
         
-        # Botones de acción
+        # Botones de acción mejorados
         button_panel = QWidget()
         button_layout = QVBoxLayout(button_panel)
         button_layout.setContentsMargins(0, 0, 0, 0)
-        button_layout.setSpacing(5)
+        button_layout.setSpacing(8)
         
-        # Botón de envío
-        self.send_button = QPushButton("Enviar")
+        # Botón de envío 
+        self.send_button = QPushButton("  Enviar")
         self.send_button.clicked.connect(self._on_send_message)
         button_layout.addWidget(self.send_button)
         
-        # Botón de voz
-        self.voice_toggle = QPushButton("Voz: ON")
+        # Botón de voz con toggle
+        self.voice_toggle = QPushButton("  Voz: ON")
         self.voice_toggle.setCheckable(True)
         self.voice_toggle.setChecked(True)
         self.voice_toggle.clicked.connect(self._toggle_voice)
         button_layout.addWidget(self.voice_toggle)
         
         # Botón de limpiar
-        clear_button = QPushButton("Limpiar")
+        clear_button = QPushButton("  Limpiar")
         clear_button.clicked.connect(self._clear_chat)
         button_layout.addWidget(clear_button)
         
@@ -279,6 +360,7 @@ class ApplicationGUI(QMainWindow):
         title = QLabel("Configuración del Sistema")
         title.setFont(QFont(self.default_font.family(), 12, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("color: #00B4A6;")
         settings_layout.addWidget(title)
         
         # Crear secciones de configuración
@@ -315,6 +397,7 @@ class ApplicationGUI(QMainWindow):
         group_box = QFrame()
         group_box.setFrameShape(QFrame.Shape.StyledPanel)
         group_box.setFrameShadow(QFrame.Shadow.Raised)
+        group_box.setStyleSheet("background-color: #212134; padding: 10px;")
         
         layout = QVBoxLayout(group_box)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -323,6 +406,7 @@ class ApplicationGUI(QMainWindow):
         # Título de sección
         section_title = QLabel("Apariencia")
         section_title.setFont(QFont(self.default_font.family(), 11, QFont.Weight.Bold))
+        section_title.setStyleSheet("color: #00B4A6;")
         layout.addWidget(section_title)
         
         # Selector de tema
@@ -335,6 +419,18 @@ class ApplicationGUI(QMainWindow):
         
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(["Oscuro", "Claro", "Sistema"])
+        self.theme_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+        """)
         theme_layout.addWidget(self.theme_combo)
         
         layout.addLayout(theme_layout)
@@ -354,6 +450,22 @@ class ApplicationGUI(QMainWindow):
         self.font_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.font_slider.setTickInterval(1)
         self.font_slider.valueChanged.connect(self._update_font_size)
+        self.font_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #555;
+                height: 8px;
+                background: #2A2A40;
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #00B4A6;
+                border: 1px solid #00B4A6;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+        """)
         
         self.font_size_label = QLabel("10 pt")
         self.font_size_label.setFixedWidth(40)
@@ -371,6 +483,7 @@ class ApplicationGUI(QMainWindow):
         group_box = QFrame()
         group_box.setFrameShape(QFrame.Shape.StyledPanel)
         group_box.setFrameShadow(QFrame.Shadow.Raised)
+        group_box.setStyleSheet("background-color: #212134; padding: 10px;")
         
         layout = QVBoxLayout(group_box)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -379,6 +492,7 @@ class ApplicationGUI(QMainWindow):
         # Título de sección
         section_title = QLabel("Modelo de IA")
         section_title.setFont(QFont(self.default_font.family(), 11, QFont.Weight.Bold))
+        section_title.setStyleSheet("color: #00B4A6;")
         layout.addWidget(section_title)
         
         # Configuración de creatividad
@@ -395,6 +509,22 @@ class ApplicationGUI(QMainWindow):
         self.creativity_slider.setValue(70)
         self.creativity_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.creativity_slider.setTickInterval(10)
+        self.creativity_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #555;
+                height: 8px;
+                background: #2A2A40;
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #00B4A6;
+                border: 1px solid #00B4A6;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+        """)
         
         self.creativity_value = QLabel("70%")
         self.creativity_value.setFixedWidth(40)
@@ -418,6 +548,18 @@ class ApplicationGUI(QMainWindow):
         self.length_combo = QComboBox()
         self.length_combo.addItems(["Corta", "Media", "Larga", "Muy larga"])
         self.length_combo.setCurrentIndex(1)  # Media por defecto
+        self.length_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+        """)
         length_layout.addWidget(self.length_combo)
         
         layout.addLayout(length_layout)
@@ -428,6 +570,21 @@ class ApplicationGUI(QMainWindow):
         
         self.continuous_learning = QCheckBox("Habilitar aprendizaje continuo")
         self.continuous_learning.setChecked(True)
+        self.continuous_learning.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         learning_layout.addWidget(self.continuous_learning)
         
         layout.addLayout(learning_layout)
@@ -439,6 +596,7 @@ class ApplicationGUI(QMainWindow):
         group_box = QFrame()
         group_box.setFrameShape(QFrame.Shape.StyledPanel)
         group_box.setFrameShadow(QFrame.Shadow.Raised)
+        group_box.setStyleSheet("background-color: #212134; padding: 10px;")
         
         layout = QVBoxLayout(group_box)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -447,21 +605,67 @@ class ApplicationGUI(QMainWindow):
         # Título de sección
         section_title = QLabel("Sistema")
         section_title.setFont(QFont(self.default_font.family(), 11, QFont.Weight.Bold))
+        section_title.setStyleSheet("color: #00B4A6;")
         layout.addWidget(section_title)
         
         # Opciones de inicio
         startup_check = QCheckBox("Iniciar automáticamente con el sistema")
         startup_check.setChecked(False)
+        startup_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         layout.addWidget(startup_check)
         
         # Opciones de guardado
         save_check = QCheckBox("Guardar historial de conversaciones")
         save_check.setChecked(True)
+        save_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         layout.addWidget(save_check)
         
         # Opciones de actualizaciones
         update_check = QCheckBox("Buscar actualizaciones automáticamente")
         update_check.setChecked(True)
+        update_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         layout.addWidget(update_check)
         
         # Ruta de datos
@@ -474,6 +678,14 @@ class ApplicationGUI(QMainWindow):
         data_path = QLineEdit()
         data_path.setText("./data")
         data_path.setReadOnly(True)
+        data_path.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+        """)
         data_layout.addWidget(data_path)
         
         browse_button = QPushButton("...")
@@ -496,10 +708,19 @@ class ApplicationGUI(QMainWindow):
         title = QLabel("Base de Conocimiento")
         title.setFont(QFont(self.default_font.family(), 12, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("color: #00B4A6;")
         knowledge_layout.addWidget(title)
         
         # Panel de pestañas para diferentes tipos de conocimiento
         knowledge_tabs = QTabWidget()
+        knowledge_tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #555;
+                border-radius: 4px;
+                top: -1px;
+                background-color: #212134;
+            }
+        """)
         knowledge_layout.addWidget(knowledge_tabs)
         
         # Pestaña de hechos/conceptos
@@ -514,6 +735,14 @@ class ApplicationGUI(QMainWindow):
         fact_input = QTextEdit()
         fact_input.setPlaceholderText("Escriba la información que desea añadir...")
         fact_input.setMaximumHeight(100)
+        fact_input.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+        """)
         facts_layout.addWidget(fact_input)
         
         # Categoría
@@ -523,6 +752,18 @@ class ApplicationGUI(QMainWindow):
         category_combo = QComboBox()
         category_combo.setEditable(True)
         category_combo.addItems(["General", "Ciencia", "Historia", "Tecnología", "Arte", "Personalizado"])
+        category_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+        """)
         category_layout.addWidget(category_combo)
         
         facts_layout.addLayout(category_layout)
@@ -537,6 +778,22 @@ class ApplicationGUI(QMainWindow):
         importance_slider.setValue(5)
         importance_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         importance_slider.setTickInterval(1)
+        importance_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #555;
+                height: 8px;
+                background: #2A2A40;
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #00B4A6;
+                border: 1px solid #00B4A6;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+        """)
         
         importance_value = QLabel("5")
         importance_value.setFixedWidth(20)
@@ -560,6 +817,14 @@ class ApplicationGUI(QMainWindow):
         
         search_input = QLineEdit()
         search_input.setPlaceholderText("Buscar en base de conocimiento...")
+        search_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+        """)
         search_layout.addWidget(search_input)
         
         search_button = QPushButton("Buscar")
@@ -571,6 +836,14 @@ class ApplicationGUI(QMainWindow):
         search_results = QTextEdit()
         search_results.setReadOnly(True)
         search_results.setPlaceholderText("Los resultados de búsqueda aparecerán aquí...")
+        search_results.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+        """)
         facts_layout.addWidget(search_results)
         
         knowledge_tabs.addTab(facts_tab, "Hechos y Conceptos")
@@ -591,6 +864,14 @@ class ApplicationGUI(QMainWindow):
         text_path = QLineEdit()
         text_path.setPlaceholderText("Seleccione archivo de texto...")
         text_path.setReadOnly(True)
+        text_path.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+        """)
         import_text_layout.addWidget(text_path)
         
         text_browse = QPushButton("Examinar")
@@ -606,6 +887,14 @@ class ApplicationGUI(QMainWindow):
         csv_path = QLineEdit()
         csv_path.setPlaceholderText("Seleccione archivo de datos...")
         csv_path.setReadOnly(True)
+        csv_path.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+        """)
         import_csv_layout.addWidget(csv_path)
         
         csv_browse = QPushButton("Examinar")
@@ -617,10 +906,40 @@ class ApplicationGUI(QMainWindow):
         import_options_layout = QHBoxLayout()
         
         replace_check = QCheckBox("Reemplazar datos existentes")
+        replace_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         import_options_layout.addWidget(replace_check)
         
         categorize_check = QCheckBox("Categorizar automáticamente")
         categorize_check.setChecked(True)
+        categorize_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         import_options_layout.addWidget(categorize_check)
         
         import_layout.addLayout(import_options_layout)
@@ -651,12 +970,14 @@ class ApplicationGUI(QMainWindow):
         title = QLabel("Configuración de Voz")
         title.setFont(QFont(self.default_font.family(), 12, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("color: #00B4A6;")
         voice_layout.addWidget(title)
         
         # Panel de selección de voz
         voice_frame = QFrame()
         voice_frame.setFrameShape(QFrame.Shape.StyledPanel)
         voice_frame.setFrameShadow(QFrame.Shadow.Raised)
+        voice_frame.setStyleSheet("background-color: #212134; padding: 10px;")
         
         voice_settings_layout = QVBoxLayout(voice_frame)
         voice_settings_layout.setContentsMargins(10, 10, 10, 10)
@@ -677,6 +998,18 @@ class ApplicationGUI(QMainWindow):
             "Latinoamericano (Colombia)", 
             "Español (España)"
         ])
+        dialect_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+        """)
         dialect_layout.addWidget(dialect_combo)
         
         voice_settings_layout.addLayout(dialect_layout)
@@ -695,6 +1028,22 @@ class ApplicationGUI(QMainWindow):
         speed_slider.setValue(100)
         speed_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         speed_slider.setTickInterval(10)
+        speed_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #555;
+                height: 8px;
+                background: #2A2A40;
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #00B4A6;
+                border: 1px solid #00B4A6;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+        """)
         
         speed_value = QLabel("100%")
         speed_value.setFixedWidth(40)
@@ -721,6 +1070,22 @@ class ApplicationGUI(QMainWindow):
         pitch_slider.setValue(100)
         pitch_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         pitch_slider.setTickInterval(10)
+        pitch_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #555;
+                height: 8px;
+                background: #2A2A40;
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #00B4A6;
+                border: 1px solid #00B4A6;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+        """)
         
         pitch_value = QLabel("100%")
         pitch_value.setFixedWidth(40)
@@ -736,6 +1101,21 @@ class ApplicationGUI(QMainWindow):
         # Opciones de activación
         activation_check = QCheckBox("Activar voz automáticamente al iniciar")
         activation_check.setChecked(True)
+        activation_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         voice_settings_layout.addWidget(activation_check)
         
         voice_layout.addWidget(voice_frame)
@@ -744,6 +1124,7 @@ class ApplicationGUI(QMainWindow):
         test_frame = QFrame()
         test_frame.setFrameShape(QFrame.Shape.StyledPanel)
         test_frame.setFrameShadow(QFrame.Shadow.Raised)
+        test_frame.setStyleSheet("background-color: #212134; padding: 10px;")
         
         test_layout = QVBoxLayout(test_frame)
         test_layout.setContentsMargins(10, 10, 10, 10)
@@ -754,6 +1135,14 @@ class ApplicationGUI(QMainWindow):
         test_input = QTextEdit()
         test_input.setPlaceholderText("Escriba texto para probar la voz...")
         test_input.setMaximumHeight(80)
+        test_input.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+        """)
         test_layout.addWidget(test_input)
         
         test_button = QPushButton("Reproducir Prueba")
@@ -792,12 +1181,14 @@ class ApplicationGUI(QMainWindow):
         title = QLabel("Entrenamiento del Modelo")
         title.setFont(QFont(self.default_font.family(), 12, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("color: #00B4A6;")
         training_layout.addWidget(title)
         
         # Información del modelo
         info_frame = QFrame()
         info_frame.setFrameShape(QFrame.Shape.StyledPanel)
         info_frame.setFrameShadow(QFrame.Shadow.Raised)
+        info_frame.setStyleSheet("background-color: #212134; padding: 10px;")
         
         info_layout = QVBoxLayout(info_frame)
         info_layout.setContentsMargins(10, 10, 10, 10)
@@ -809,6 +1200,14 @@ class ApplicationGUI(QMainWindow):
         info_text.setReadOnly(True)
         info_text.setPlaceholderText("La información del modelo se cargará al iniciar...")
         info_text.setMaximumHeight(100)
+        info_text.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+        """)
         info_layout.addWidget(info_text)
         
         training_layout.addWidget(info_frame)
@@ -817,6 +1216,7 @@ class ApplicationGUI(QMainWindow):
         options_frame = QFrame()
         options_frame.setFrameShape(QFrame.Shape.StyledPanel)
         options_frame.setFrameShadow(QFrame.Shadow.Raised)
+        options_frame.setStyleSheet("background-color: #212134; padding: 10px;")
         
         options_layout = QVBoxLayout(options_frame)
         options_layout.setContentsMargins(10, 10, 10, 10)
@@ -833,6 +1233,18 @@ class ApplicationGUI(QMainWindow):
         epochs_input = QComboBox()
         epochs_input.addItems(["1", "3", "5", "10", "20"])
         epochs_input.setCurrentIndex(2)  # 5 por defecto
+        epochs_input.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+        """)
         epochs_layout.addWidget(epochs_input)
         
         params_layout.addLayout(epochs_layout)
@@ -843,6 +1255,18 @@ class ApplicationGUI(QMainWindow):
         batch_input = QComboBox()
         batch_input.addItems(["16", "32", "64", "128"])
         batch_input.setCurrentIndex(2)  # 64 por defecto
+        batch_input.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+        """)
         batch_layout.addWidget(batch_input)
         
         params_layout.addLayout(batch_layout)
@@ -853,6 +1277,18 @@ class ApplicationGUI(QMainWindow):
         learning_input = QComboBox()
         learning_input.addItems(["0.0001", "0.001", "0.01", "0.1"])
         learning_input.setCurrentIndex(1)  # 0.001 por defecto
+        learning_input.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #2A2A40;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+        """)
         learning_layout.addWidget(learning_input)
         
         params_layout.addLayout(learning_layout)
@@ -864,14 +1300,59 @@ class ApplicationGUI(QMainWindow):
         
         validation_check = QCheckBox("Usar validación cruzada")
         validation_check.setChecked(True)
+        validation_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         advanced_layout.addWidget(validation_check)
         
         checkpoint_check = QCheckBox("Guardar checkpoints")
         checkpoint_check.setChecked(True)
+        checkpoint_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         advanced_layout.addWidget(checkpoint_check)
         
         early_check = QCheckBox("Early stopping")
         early_check.setChecked(True)
+        early_check.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                border: 1px solid #555;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #00B4A6;
+                border: 1px solid #00B4A6;
+            }
+        """)
         advanced_layout.addWidget(early_check)
         
         options_layout.addLayout(advanced_layout)
@@ -882,6 +1363,7 @@ class ApplicationGUI(QMainWindow):
         buttons_frame = QFrame()
         buttons_frame.setFrameShape(QFrame.Shape.StyledPanel)
         buttons_frame.setFrameShadow(QFrame.Shadow.Raised)
+        buttons_frame.setStyleSheet("background-color: #212134; padding: 10px;")
         
         buttons_layout = QVBoxLayout(buttons_frame)
         buttons_layout.setContentsMargins(10, 10, 10, 10)
@@ -949,9 +1431,21 @@ class ApplicationGUI(QMainWindow):
         # Deshabilitar botón de envío durante el procesamiento
         self.send_button.setEnabled(False)
         
-        # Añadir mensaje del usuario al historial
+        # Añadir mensaje del usuario al historial con formato HTML
         current_time = datetime.now().strftime("%H:%M:%S")
-        self.chat_history.append(f"Usuario: {user_input} [{current_time}]")
+        
+        html = f"""
+        <div class="user-message">
+            {user_input}
+            <div class="timestamp">{current_time}</div>
+        </div>
+        """
+        
+        # Insertar HTML
+        cursor = self.chat_history.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertHtml(html)
+        cursor.insertBlock()  # Añade un bloque vacío como separador
         
         # Limpiar campo de entrada
         self.input_field.clear()
@@ -963,9 +1457,21 @@ class ApplicationGUI(QMainWindow):
     
     def _on_response_ready(self, response):
         """Maneja la recepción de una respuesta del sistema de IA"""
-        # Añadir respuesta al historial
+        # Añadir respuesta al historial con formato HTML
         current_time = datetime.now().strftime("%H:%M:%S")
-        self.chat_history.append(f"Asistente: {response} [{current_time}]")
+        
+        html = f"""
+        <div class="assistant-message">
+            {response}
+            <div class="timestamp">{current_time}</div>
+        </div>
+        """
+        
+        # Insertar HTML
+        cursor = self.chat_history.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertHtml(html)
+        cursor.insertBlock()  # Añade un bloque vacío como separador
         
         # Desplazar al final del historial
         self.chat_history.moveCursor(QTextCursor.MoveOperation.End)
@@ -978,9 +1484,9 @@ class ApplicationGUI(QMainWindow):
         self.enable_voice = self.voice_toggle.isChecked()
         
         if self.enable_voice:
-            self.voice_toggle.setText("Voz: ON")
+            self.voice_toggle.setText("  Voz: ON")
         else:
-            self.voice_toggle.setText("Voz: OFF")
+            self.voice_toggle.setText("  Voz: OFF")
     
     def _clear_chat(self):
         """Limpia el historial de chat"""
@@ -1070,13 +1576,15 @@ class ApplicationGUI(QMainWindow):
     
     def run(self):
         """Muestra la ventana principal y ejecuta el bucle de eventos"""
-        # Asegurar que QApplication existe antes de mostrar cualquier widget
-        app = QApplication.instance()
-        if app is None:
-            app = QApplication(sys.argv)
-        
-        # Ahora es seguro mostrar la ventana
+        # Verificación de seguridad
+        from PyQt6.QtWidgets import QMainWindow
+        if not isinstance(self, QMainWindow):
+            print("ERROR: run() llamado desde un tipo de objeto incorrecto")
+            print(f"Tipo actual: {type(self).__name__}")
+            return 1
+            
+        print(f"Mostrando ventana principal (tipo: {type(self).__name__})...")
         self.show()
         
         # Retornar código de salida de la aplicación
-        return app.exec()
+        return self._qt_app.exec()

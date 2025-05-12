@@ -212,20 +212,24 @@ class KnowledgeBase:
             
             # Vectorizar entrada actual y conversaciones previas
             if len(user_inputs) >= 5:  # Necesitamos suficientes ejemplos para vectorización efectiva
-                # Vectorizar
-                vectorizer = TfidfVectorizer(lowercase=True, ngram_range=(1, 2))
-                tfidf_matrix = vectorizer.fit_transform(user_inputs + [input_text])
-                
-                # Calcular similitud coseno
-                cosine_similarities = cosine_similarity(tfidf_matrix[-1:], tfidf_matrix[:-1])[0]
-                
-                # Encontrar la conversación más similar
-                max_similarity_idx = np.argmax(cosine_similarities)
-                max_similarity = cosine_similarities[max_similarity_idx]
-                
-                # Si hay similitud suficiente, devolver la respuesta correspondiente
-                if max_similarity > 0.6:
-                    return conversations[max_similarity_idx][1]
+                try:
+                    # Vectorizar
+                    vectorizer = TfidfVectorizer(lowercase=True, ngram_range=(1, 2))
+                    tfidf_matrix = vectorizer.fit_transform(user_inputs + [input_text])
+                    
+                    # Calcular similitud coseno
+                    cosine_similarities = cosine_similarity(tfidf_matrix[-1:], tfidf_matrix[:-1])[0]
+                    
+                    # Encontrar la conversación más similar
+                    max_similarity_idx = np.argmax(cosine_similarities)
+                    max_similarity = cosine_similarities[max_similarity_idx]
+                    
+                    # Si hay similitud suficiente, devolver la respuesta correspondiente
+                    if max_similarity > 0.6:
+                        return conversations[max_similarity_idx][1]
+                except Exception as e:
+                    self.logger.warning(f"Error en la vectorización durante búsqueda semántica: {str(e)}")
+                    return None
             
             return None
             

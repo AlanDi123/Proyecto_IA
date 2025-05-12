@@ -107,8 +107,16 @@ class TextProcessor:
                 try:
                     self.nlp = spacy.load("es_core_news_sm")
                 except OSError:
-                    self.logger.warning("Ningún modelo spaCy disponible, se reducirá la funcionalidad")
-                    self.nlp = None
+                    # Descargar el modelo automáticamente si no está disponible
+                    self.logger.info("Descargando modelo spaCy es_core_news_sm...")
+                    try:
+                        from spacy.cli import download
+                        download("es_core_news_sm")
+                        self.nlp = spacy.load("es_core_news_sm")
+                        self.logger.info("Modelo spaCy es_core_news_sm descargado y cargado correctamente")
+                    except Exception as e:
+                        self.logger.error(f"Error al descargar modelo spaCy: {str(e)}")
+                        self.nlp = None
         
         except Exception as e:
             self.logger.error(f"Error al cargar recursos NLP: {str(e)}")
@@ -182,7 +190,7 @@ class TextProcessor:
     
     def process(self, text):
         """Procesa el texto de entrada y retorna información estructurada"""
-        if not text or not text.strip():
+        if not text or not isinstance(text, str) or not text.strip():
             return {
                 'original': '',
                 'processed': '',
@@ -200,7 +208,14 @@ class TextProcessor:
             
             # Tokenización
             tokens = self._tokenize(processed_text)
-            sentences = sent_tokenize(processed_text)
+            
+            # Asegurar que sent_tokenize esté disponible
+            try:
+                sentences = sent_tokenize(processed_text)
+            except LookupError:
+                # Descargar el recurso si no está disponible
+                nltk.download('punkt')
+                sentences = sent_tokenize(processed_text)
             
             # Análisis de intención y emoción
             intent = self._detect_intent(processed_text, tokens)
@@ -234,7 +249,7 @@ class TextProcessor:
                 'original': text,
                 'processed': text,
                 'tokens': [],
-                'sentences': [],
+                'sentences': [text],
                 'intent': 'unknown',
                 'emotion': 'neutral',
                 'entities': [],
@@ -243,6 +258,13 @@ class TextProcessor:
     
     def _normalize_text(self, text):
         """Normaliza el texto: elimina URLs, limpia espacios, etc."""
+        # Verificar tipo de dato
+        if not isinstance(text, str):
+            if isinstance(text, dict) and 'original' in text:
+                text = text['original']
+            else:
+                text = str(text)
+                
         # Convertir a minúsculas
         text = text.lower()
         
@@ -264,7 +286,12 @@ class TextProcessor:
     
     def _tokenize(self, text):
         """Tokeniza el texto en palabras y elimina stopwords"""
-        tokens = word_tokenize(text)
+        try:
+            tokens = word_tokenize(text)
+        except LookupError:
+            # Descargar el recurso si no está disponible
+            nltk.download('punkt')
+            tokens = word_tokenize(text)
         
         # Filtrar stopwords
         tokens = [t for t in tokens if t not in self.stop_words and t not in string.punctuation]
@@ -301,18 +328,22 @@ class TextProcessor:
         
         # Si no hay una intención clara, analizar con spaCy si está disponible
         if dominant_intent[1] == 0 and self.nlp:
-            doc = self.nlp(text)
-            
-            # Analizar verbos y estructura sintáctica
-            verbs = [token.lemma_ for token in doc if token.pos_ == 'VERB']
-            
-            if verbs and verbs[0] in ['preguntar', 'saber', 'conocer']:
-                return 'question'
-            elif verbs and verbs[0] in ['hacer', 'mostrar', 'decir', 'buscar']:
-                return 'command'
-            elif any(token.text in ['gracias', 'agradecido'] for token in doc):
-                return 'gratitude'
-            else:
+            try:
+                doc = self.nlp(text)
+                
+                # Analizar verbos y estructura sintáctica
+                verbs = [token.lemma_ for token in doc if token.pos_ == 'VERB']
+                
+                if verbs and verbs[0] in ['preguntar', 'saber', 'conocer']:
+                    return 'question'
+                elif verbs and verbs[0] in ['hacer', 'mostrar', 'decir', 'buscar']:
+                    return 'command'
+                elif any(token.text in ['gracias', 'agradecido'] for token in doc):
+                    return 'gratitude'
+                else:
+                    return 'statement'
+            except Exception as e:
+                self.logger.warning(f"Error en análisis con spaCy: {str(e)}")
                 return 'statement'
         
         # Si no hay puntuación o es igual para varias intenciones, usar 'statement' por defecto
@@ -347,17 +378,22 @@ class TextProcessor:
         
         # Usar spaCy para extracción de entidades si está disponible
         if self.nlp:
-            doc = self.nlp(text)
-            
-            for ent in doc.ents:
-                entities.append({
-                    'text': ent.text,
-                    'start': ent.start_char,
-                    'end': ent.end_char,
-                    'type': ent.label_
-                })
-        # Fallback simple basado en patrones
-        else:
+            try:
+                doc = self.nlp(text)
+                
+                for ent in doc.ents:
+                    entities.append({
+                        'text': ent.text,
+                        'start': ent.start_char,
+                        'end': ent.end_char,
+                        'type': ent.label_
+                    })
+            except Exception as e:
+                self.logger.warning(f"Error en extracción de entidades con spaCy: {str(e)}")
+                # Continuar con el fallback simple
+        
+        # Fallback simple basado en patrones si no hay entidades o spaCy no está disponible
+        if not entities:
             # Detectar fechas
             date_pattern = re.compile(r'\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2} de [a-z]+ de \d{2,4}')
             for match in date_pattern.finditer(text):
@@ -386,34 +422,41 @@ class TextProcessor:
         
         # Usar spaCy para análisis sintáctico si está disponible
         if self.nlp:
-            doc = self.nlp(text)
-            
-            # Extraer sintagmas nominales (noun phrases)
-            for chunk in doc.noun_chunks:
-                if len(chunk.text.split()) > 1:  # Frases con más de una palabra
-                    key_phrases.append(chunk.text)
-            
-            # Extraer verbos con sus objetos
-            for token in doc:
-                if token.pos_ == 'VERB' and token.dep_ == 'ROOT':
-                    phrase = token.text
-                    for child in token.children:
-                        if child.dep_ in ['dobj', 'iobj']:
-                            phrase = f"{phrase} {child.text}"
-                    
-                    if len(phrase.split()) > 1:
-                        key_phrases.append(phrase)
+            try:
+                doc = self.nlp(text)
+                
+                # Extraer sintagmas nominales (noun phrases)
+                for chunk in doc.noun_chunks:
+                    if len(chunk.text.split()) > 1:  # Frases con más de una palabra
+                        key_phrases.append(chunk.text)
+                
+                # Extraer verbos con sus objetos
+                for token in doc:
+                    if token.pos_ == 'VERB' and token.dep_ == 'ROOT':
+                        phrase = token.text
+                        for child in token.children:
+                            if child.dep_ in ['dobj', 'iobj']:
+                                phrase = f"{phrase} {child.text}"
+                        
+                        if len(phrase.split()) > 1:
+                            key_phrases.append(phrase)
+            except Exception as e:
+                self.logger.warning(f"Error en extracción de frases clave con spaCy: {str(e)}")
+                # Continuar con el fallback simple
         
-        # Fallback simple basado en n-gramas
-        else:
-            # Crear n-gramas
-            words = word_tokenize(text)
-            bigrams = [' '.join(words[i:i+2]) for i in range(len(words)-1)]
-            trigrams = [' '.join(words[i:i+3]) for i in range(len(words)-2)]
-            
-            # Filtrar n-gramas que contengan solo stopwords
-            key_phrases = [ngram for ngram in bigrams + trigrams 
-                           if not all(word in self.stop_words for word in ngram.split())]
+        # Fallback simple basado en n-gramas si no hay frases clave o spaCy no está disponible
+        if not key_phrases:
+            try:
+                # Crear n-gramas
+                words = word_tokenize(text)
+                bigrams = [' '.join(words[i:i+2]) for i in range(len(words)-1)]
+                trigrams = [' '.join(words[i:i+3]) for i in range(len(words)-2)]
+                
+                # Filtrar n-gramas que contengan solo stopwords
+                key_phrases = [ngram for ngram in bigrams + trigrams 
+                               if not all(word in self.stop_words for word in ngram.split())]
+            except Exception as e:
+                self.logger.warning(f"Error en fallback para extracción de frases clave: {str(e)}")
         
         # Eliminar duplicados y limitar a un máximo de 5 frases
         key_phrases = list(set(key_phrases))[:5]
@@ -433,9 +476,13 @@ class TextProcessor:
             
             # Calcular similitud con spaCy si está disponible
             if self.nlp:
-                doc1 = self.nlp(text1_norm)
-                doc2 = self.nlp(text2_norm)
-                return doc1.similarity(doc2)
+                try:
+                    doc1 = self.nlp(text1_norm)
+                    doc2 = self.nlp(text2_norm)
+                    return doc1.similarity(doc2)
+                except Exception as e:
+                    self.logger.warning(f"Error en cálculo de similitud con spaCy: {str(e)}")
+                    # Continuar con el fallback TF-IDF
             
             # Fallback a TF-IDF con similitud coseno
             tfidf_matrix = self.vectorizer.fit_transform([text1_norm, text2_norm])
@@ -460,45 +507,56 @@ class TextProcessor:
             # Extraer temas de las últimas entradas de la conversación
             recent_exchanges = []
             for entry in conversation_history[-5:]:
-                if 'content' in entry:
+                if isinstance(entry, dict) and 'content' in entry:
                     recent_exchanges.append(entry['content'])
+                elif isinstance(entry, str):
+                    recent_exchanges.append(entry)
             
-            all_text = ' '.join(recent_exchanges + [user_input])
+            # Asegurar que user_input sea string
+            if isinstance(user_input, dict) and 'original' in user_input:
+                user_input_text = user_input['original']
+            else:
+                user_input_text = str(user_input)
+                
+            all_text = ' '.join(recent_exchanges + [user_input_text])
             
             # Usar spaCy para análisis contextual si está disponible
             if self.nlp:
-                doc = self.nlp(all_text)
-                
-                # Extraer entidades
-                for ent in doc.ents:
-                    context['entities'].append({
-                        'text': ent.text,
-                        'type': ent.label_
-                    })
-                    context['topics'].add(ent.text.lower())
-                
-                # Identificar posibles referencias pronominales
-                pronoun_refs = {}
-                
-                for sent in doc.sents:
-                    for token in sent:
-                        if token.pos_ == 'PRON':
-                            # Buscar el antecedente más cercano
-                            for ancestor in token.ancestors:
-                                if ancestor.pos_ in ['NOUN', 'PROPN']:
-                                    pronoun_refs[token.text] = ancestor.text
-                                    break
-                
-                context['references'] = pronoun_refs
-                
-                # Detectar temas adicionales basados en sustantivos frecuentes
-                nouns = [token.text for token in doc if token.pos_ in ['NOUN', 'PROPN']]
-                noun_freq = Counter(nouns)
-                
-                # Añadir los sustantivos más frecuentes como temas
-                for noun, freq in noun_freq.most_common(5):
-                    if freq > 1:  # Mencionado más de una vez
-                        context['topics'].add(noun.lower())
+                try:
+                    doc = self.nlp(all_text)
+                    
+                    # Extraer entidades
+                    for ent in doc.ents:
+                        context['entities'].append({
+                            'text': ent.text,
+                            'type': ent.label_
+                        })
+                        context['topics'].add(ent.text.lower())
+                    
+                    # Identificar posibles referencias pronominales
+                    pronoun_refs = {}
+                    
+                    for sent in doc.sents:
+                        for token in sent:
+                            if token.pos_ == 'PRON':
+                                # Buscar el antecedente más cercano
+                                for ancestor in token.ancestors:
+                                    if ancestor.pos_ in ['NOUN', 'PROPN']:
+                                        pronoun_refs[token.text] = ancestor.text
+                                        break
+                    
+                    context['references'] = pronoun_refs
+                    
+                    # Detectar temas adicionales basados en sustantivos frecuentes
+                    nouns = [token.text for token in doc if token.pos_ in ['NOUN', 'PROPN']]
+                    noun_freq = Counter(nouns)
+                    
+                    # Añadir los sustantivos más frecuentes como temas
+                    for noun, freq in noun_freq.most_common(5):
+                        if freq > 1:  # Mencionado más de una vez
+                            context['topics'].add(noun.lower())
+                except Exception as e:
+                    self.logger.warning(f"Error en extracción de contexto con spaCy: {str(e)}")
             
             # Convertir set a lista para serialización
             context['topics'] = list(context['topics'])
@@ -518,8 +576,15 @@ class TextProcessor:
     def generate_response_template(self, processed_input):
         """Genera una plantilla de respuesta basada en el análisis del texto"""
         try:
-            intent = processed_input.get('intent', 'unknown')
-            emotion = processed_input.get('emotion', 'neutral')
+            # Verificar tipo de entrada
+            if isinstance(processed_input, dict):
+                intent = processed_input.get('intent', 'unknown')
+                emotion = processed_input.get('emotion', 'neutral')
+            else:
+                # Si solo se pasó el texto sin procesar
+                processed_data = self.process(processed_input)
+                intent = processed_data.get('intent', 'unknown')
+                emotion = processed_data.get('emotion', 'neutral')
             
             templates = {
                 'greeting': [

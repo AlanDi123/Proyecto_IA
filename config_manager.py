@@ -113,8 +113,14 @@ class ConfigManager:
             # Verificar si existe el archivo de configuración
             if os.path.exists(self.config_file):
                 with open(self.config_file, 'r', encoding='utf-8') as f:
-                    self.config_data = json.load(f)
-                
+                    try:
+                        self.config_data = json.load(f)
+                    except json.JSONDecodeError:
+                        self.logger.error(f"Error en el formato del archivo de configuración. Usando valores predeterminados.")
+                        self.config_data = self.default_config.copy()
+                        self._save_config()
+                        return
+                    
                 # Validar configuración cargada y completar con valores predeterminados si faltan
                 self._validate_config()
                 
